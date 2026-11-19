@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
-const Courses = () => {
+const API_COURSES_URL = 'http://localhost:5000/api/courses';
+
+const Courses = ({ token, user, onCoursesChange }) => {
     const [courses, setCourses] = useState([]);
     const [formData, setFormData] = useState({
         course_code: '',
@@ -9,19 +11,45 @@ const Courses = () => {
         credit: ''
     });
 
-    // ব্যাকএন্ড থেকে কোর্সগুলো ফেচ করা
-    const fetchCourses = async () => {
+    const getHeaders = useCallback(() => {
+        const activeToken = token || localStorage.getItem('token');
+        return activeToken ? { Authorization: `Bearer ${activeToken}` } : {};
+    }, [token]);
+
+    // ব্যাকএন্ড থেকে শুধু বর্তমান ইউজারের কোর্সগুলো ফেচ করা
+    const fetchCourses = useCallback(async () => {
+        const activeToken = token || localStorage.getItem('token');
+        const activeUserId = user?.id || (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('user') || 'null');
+                return saved?.id || null;
+            } catch {
+                return null;
+            }
+        })();
+
         try {
-            const response = await axios.get('http://localhost:5000/api/courses');
-            setCourses(response.data.courses);
+            const response = await axios.get(API_COURSES_URL, {
+                headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
+                params: activeUserId ? { userId: activeUserId } : {}
+            });
+            const list = Array.isArray(response.data?.courses) ? response.data.courses : [];
+            setCourses(list);
+            if (typeof onCoursesChange === 'function') {
+                onCoursesChange(list.length);
+            }
         } catch (error) {
             console.error('Error fetching courses:', error);
+            setCourses([]);
+            if (typeof onCoursesChange === 'function') {
+                onCoursesChange(0);
+            }
         }
-    };
+    }, [token, user, onCoursesChange]);
 
     useEffect(() => {
         fetchCourses();
-    }, []);
+    }, [fetchCourses]);
 
     // ইনপুট ফিল্ড হ্যান্ডেল করা
     const handleChange = (e) => {
@@ -31,10 +59,26 @@ const Courses = () => {
     // নতুন কোর্স অ্যাড করার সাবমিট হ্যান্ডলার
     const handleAddCourse = async (e) => {
         e.preventDefault();
+        const activeUserId = user?.id || (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('user') || 'null');
+                return saved?.id || null;
+            } catch {
+                return null;
+            }
+        })();
+
         try {
-            await axios.post('http://localhost:5000/api/courses/add', formData);
+            await axios.post(
+                `${API_COURSES_URL}/add`,
+                {
+                    ...formData,
+                    userId: activeUserId
+                },
+                { headers: getHeaders() }
+            );
             setFormData({ course_code: '', course_name: '', credit: '' });
-            fetchCourses(); // লিস্ট রিফ্রেশ করা
+            await fetchCourses();
         } catch (error) {
             console.error('Error adding course:', error);
         }
@@ -42,9 +86,22 @@ const Courses = () => {
 
     // কোর্স ডিলিট বা ড্রপ করার হ্যান্ডলার
     const handleDeleteCourse = async (id) => {
+        const activeUserId = user?.id || (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('user') || 'null');
+                return saved?.id || null;
+            } catch {
+                return null;
+            }
+        })();
+
         try {
-            await axios.delete(`http://localhost:5000/api/courses/delete/${id}`);
-            fetchCourses(); // লিস্ট রিফ্রেশ করা
+            await axios.delete(`${API_COURSES_URL}/delete/${id}`, {
+                headers: getHeaders(),
+                params: activeUserId ? { userId: activeUserId } : {},
+                data: activeUserId ? { userId: activeUserId } : {}
+            });
+            await fetchCourses();
         } catch (error) {
             console.error('Error deleting course:', error);
         }
@@ -91,7 +148,7 @@ const Courses = () => {
             {/* কোর্স লিস্ট টেবিল */}
             <table border="1" cellPadding="10" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                    <tr style={{ background: '#f4f4f4' }}>
+                    <tr style={{ background: '#f4f4f4', color: '#000' }}>
                         <th>Course Code</th>
                         <th>Course Name</th>
                         <th>Credit</th>
@@ -106,7 +163,7 @@ const Courses = () => {
                                 <td>{course.course_name}</td>
                                 <td>{course.credit}</td>
                                 <td>
-                                    <button 
+                                    <button
                                         onClick={() => handleDeleteCourse(course.id)}
                                         style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '5px 10px', cursor: 'pointer' }}
                                     >

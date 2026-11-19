@@ -1,30 +1,76 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { motion } from 'framer-motion';
+
+const API_BASE_URL = 'http://localhost:5000/api/auth';
 
 const Auth = ({ setToken, setUser }) => {
   const [isRightPanelActive, setIsRightPanelActive] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
 
-  const handleLogin = (e) => {
+  // Register states
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+
+  // Login states
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const demoUser = { name: email ? email.split('@')[0] : 'Shishir Ahmed', email: email || 'user@seu.edu.bd' };
-    localStorage.setItem('token', 'demo-token-123');
-    localStorage.setItem('user', JSON.stringify(demoUser));
-    if (typeof setToken === 'function') setToken('demo-token-123');
-    if (typeof setUser === 'function') setUser(demoUser);
-    window.location.reload();
+    setMessage('');
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/login`, {
+        email: loginEmail.trim(),
+        password: loginPassword,
+      });
+
+      const token = res.data?.token;
+      const user = res.data?.user;
+
+      if (token) {
+        localStorage.setItem('token', token);
+        if (typeof setToken === 'function') setToken(token);
+      }
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+        if (typeof setUser === 'function') setUser(user);
+      }
+      window.location.reload();
+    } catch (err) {
+      setMessage(err.response?.data?.message || err.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    const demoUser = { name: name || 'Shishir Ahmed', email: email || 'user@seu.edu.bd' };
-    localStorage.setItem('token', 'demo-token-123');
-    localStorage.setItem('user', JSON.stringify(demoUser));
-    if (typeof setToken === 'function') setToken('demo-token-123');
-    if (typeof setUser === 'function') setUser(demoUser);
-    window.location.reload();
+    setMessage('');
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/register`, {
+        name: regName.trim(),
+        email: regEmail.trim(),
+        password: regPassword,
+      });
+
+      const registeredEmail = regEmail.trim();
+      setMessage(res.data?.message || 'User registered successfully');
+      setRegName('');
+      setRegEmail('');
+      setRegPassword('');
+      setLoginEmail(registeredEmail);
+      setIsRightPanelActive(false);
+    } catch (err) {
+      setMessage(err.response?.data?.message || err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,20 +118,29 @@ const Auth = ({ setToken, setUser }) => {
           left: 0;
           width: 50%;
           z-index: 2;
+          opacity: 1;
+          visibility: visible;
         }
         .auth-container.right-panel-active .sign-in-container {
           transform: translateX(100%);
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
         }
         .sign-up-container {
           left: 0;
           width: 50%;
           opacity: 0;
+          visibility: hidden;
           z-index: 1;
+          pointer-events: none;
         }
         .auth-container.right-panel-active .sign-up-container {
           transform: translateX(100%);
           opacity: 1;
+          visibility: visible;
           z-index: 5;
+          pointer-events: auto;
           animation: show 0.6s;
         }
         @keyframes show {
@@ -222,11 +277,13 @@ const Auth = ({ setToken, setUser }) => {
         .auth-form h1 {
           font-weight: 800;
           font-size: 24px;
+          line-height: 1.25;
           margin: 0 0 6px 0;
           color: #ffffff;
         }
         .auth-form span {
           font-size: 13px;
+          line-height: 1.4;
           color: #a1a1aa;
           margin-bottom: 16px;
         }
@@ -240,6 +297,7 @@ const Auth = ({ setToken, setUser }) => {
           border-radius: 10px;
           outline: none;
           font-size: 13px;
+          line-height: 1.3;
         }
         .auth-input:focus {
           border-color: #c084fc;
@@ -291,27 +349,30 @@ const Auth = ({ setToken, setUser }) => {
               type="text" 
               className="auth-input" 
               placeholder="Full Name" 
-              value={name}
-              onChange={e => setName(e.target.value)}
+              value={regName}
+              onChange={e => setRegName(e.target.value)}
               required 
             />
             <input 
               type="email" 
               className="auth-input" 
               placeholder="Email Address" 
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              value={regEmail}
+              onChange={e => setRegEmail(e.target.value)}
               required 
             />
             <input 
               type="password" 
               className="auth-input" 
               placeholder="Password" 
-              value={password}
-              onChange={e => setPassword(e.target.value)}
+              value={regPassword}
+              onChange={e => setRegPassword(e.target.value)}
               required 
             />
-            <button type="submit" className="auth-btn">Register</button>
+            <button type="submit" className="auth-btn" disabled={loading}>
+              {loading ? 'Please wait...' : 'Register'}
+            </button>
+            {message && <p style={{ fontSize: '12px', marginTop: '8px', color: '#e9d5ff' }}>{message}</p>}
           </form>
         </div>
 
@@ -324,19 +385,22 @@ const Auth = ({ setToken, setUser }) => {
               type="email" 
               className="auth-input" 
               placeholder="Email Address" 
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              value={loginEmail}
+              onChange={e => setLoginEmail(e.target.value)}
               required 
             />
             <input 
               type="password" 
               className="auth-input" 
               placeholder="Password" 
-              value={password}
-              onChange={e => setPassword(e.target.value)}
+              value={loginPassword}
+              onChange={e => setLoginPassword(e.target.value)}
               required 
             />
-            <button type="submit" className="auth-btn">Login</button>
+            <button type="submit" className="auth-btn" disabled={loading}>
+              {loading ? 'Please wait...' : 'Login'}
+            </button>
+            {message && <p style={{ fontSize: '12px', marginTop: '8px', color: '#e9d5ff' }}>{message}</p>}
           </form>
         </div>
 
@@ -358,7 +422,7 @@ const Auth = ({ setToken, setUser }) => {
               </div>
               <h1 style={{ color: '#fff', fontSize: '20px' }}>Welcome Back!</h1>
               <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px' }}>To keep connected with us please login with your personal info</p>
-              <button type="button" className="ghost-btn" onClick={() => setIsRightPanelActive(false)}>Sign In</button>
+              <button type="button" className="ghost-btn" onClick={() => { setMessage(''); setIsRightPanelActive(false); }}>Sign In</button>
             </div>
             
             <div className="overlay-panel overlay-right">
@@ -376,7 +440,7 @@ const Auth = ({ setToken, setUser }) => {
               </div>
               <h1 style={{ color: '#fff', fontSize: '20px' }}>Hello, Student!</h1>
               <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px' }}>Enter your personal details and start your journey with us</p>
-              <button type="button" className="ghost-btn" onClick={() => setIsRightPanelActive(true)}>Sign Up</button>
+              <button type="button" className="ghost-btn" onClick={() => { setMessage(''); setIsRightPanelActive(true); }}>Sign Up</button>
             </div>
           </div>
         </div>
