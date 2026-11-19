@@ -1,0 +1,17 @@
+{
+  "name": "studyledger-root",
+  "version": "1.0.0",
+  "description": "StudyLedger Full Stack Academic Management Platform",
+  "main": "index.js",
+  "scripts": {
+    "server": "cd server && npm start",
+    "client": "cd client && npm start",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "dependencies": {
+    "framer-motion": "^14.14.0"
+  }
+}
