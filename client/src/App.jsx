@@ -3,8 +3,235 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import Auth from './components/Auth';
 import Courses from './components/Courses';
+import AiChatbot from './components/AiChatbot';
 
 const API_BASE = 'http://localhost:5000/api';
+
+const HUB_TOPICS = [
+  {
+    title: 'C++ Programming',
+    icon: '⚡',
+    desc: 'Pointers, Memory, OOP Basics',
+    lessons: [
+      {
+        title: 'Hello World & I/O',
+        resources: [
+          { label: 'W3Schools C++ I/O', url: 'https://www.w3schools.com/cpp/cpp_user_input.asp' },
+          { label: 'GeeksforGeeks C++ Basic I/O', url: 'https://www.geeksforgeeks.org/basic-input-output-c/' },
+          { label: 'cppreference I/O Streams', url: 'https://en.cppreference.com/w/cpp/io' }
+        ]
+      },
+      {
+        title: 'Pointers & References',
+        resources: [
+          { label: 'W3Schools C++ Pointers', url: 'https://www.w3schools.com/cpp/cpp_pointers.asp' },
+          { label: 'W3Schools C++ References', url: 'https://www.w3schools.com/cpp/cpp_references.asp' },
+          { label: 'LearnCpp', url: 'https://www.learncpp.com/' }
+        ]
+      },
+      {
+        title: 'OOP Concepts',
+        resources: [
+          { label: 'W3Schools C++ OOP', url: 'https://www.w3schools.com/cpp/cpp_oop.asp' },
+          { label: 'GeeksforGeeks OOP in C++', url: 'https://www.geeksforgeeks.org/object-oriented-programming-in-cpp/' }
+        ]
+      }
+    ]
+  },
+  {
+    title: 'Java Core',
+    icon: '☕',
+    desc: 'Classes, Objects, Polymorphism',
+    lessons: [
+      {
+        title: 'JVM & Main Method',
+        resources: [
+          { label: 'GeeksforGeeks JVM Architecture', url: 'https://www.geeksforgeeks.org/jvm-works-jvm-architecture/' },
+          { label: 'W3Schools Java Methods', url: 'https://www.w3schools.com/java/java_methods.asp' },
+          { label: 'Oracle Java Tutorial', url: 'https://docs.oracle.com/javase/tutorial/' }
+        ]
+      },
+      {
+        title: 'Inheritance & Interfaces',
+        resources: [
+          { label: 'W3Schools Java Inheritance', url: 'https://www.w3schools.com/java/java_inheritance.asp' },
+          { label: 'W3Schools Java Interface', url: 'https://www.w3schools.com/java/java_interface.asp' }
+        ]
+      },
+      {
+        title: 'Exception Handling',
+        resources: [
+          { label: 'W3Schools Java Exceptions', url: 'https://www.w3schools.com/java/java_exceptions.asp' },
+          { label: 'Baeldung Java Exceptions', url: 'https://www.baeldung.com/java-exceptions' }
+        ]
+      }
+    ]
+  },
+  {
+    title: 'MySQL Relational DB',
+    icon: '🐬',
+    desc: 'Queries, JOINs & Schema Design',
+    lessons: [
+      {
+        title: 'Basic CRUD Queries',
+        resources: [
+          { label: 'W3Schools SQL Tutorial', url: 'https://www.w3schools.com/sql/' },
+          { label: 'MySQL Official Documentation', url: 'https://dev.mysql.com/doc/' }
+        ]
+      },
+      {
+        title: 'INNER & LEFT JOINs',
+        resources: [
+          { label: 'W3Schools SQL JOIN', url: 'https://www.w3schools.com/sql/sql_join.asp' },
+          { label: 'MySQL JOIN Syntax', url: 'https://dev.mysql.com/doc/refman/8.4/en/join.html' }
+        ]
+      },
+      {
+        title: 'Database Indexing',
+        resources: [
+          { label: 'MySQL Indexes Overview', url: 'https://dev.mysql.com/doc/refman/8.4/en/mysql-indexes.html' },
+          { label: 'Use The Index, Luke!', url: 'https://use-the-index-luke.com/' }
+        ]
+      }
+    ]
+  }
+];
+
+const FALLBACK_QUIZ_BANK = {
+  'C++ Programming': {
+    'Hello World & I/O': [
+      { question: 'C++-এ স্ট্যান্ডার্ড আউটপুটের জন্য কোন স্ট্রিম অবজেক্ট ব্যবহৃত হয়?', options: ['cin', 'cout', 'cerr', 'clog'], answerIndex: 1, explanation: 'std::cout দিয়ে কনসোলে আউটপুট দেখানো হয়।' },
+      { question: 'cout এবং cin ব্যবহার করতে সাধারণত কোন হেডার ফাইল লাগে?', options: ['<stdio.h>', '<iostream>', '<fstream>', '<sstream>'], answerIndex: 1, explanation: 'iostream হেডারে cin ও cout সংজ্ঞায়িত থাকে।' },
+      { question: 'ইনসারশন অপারেটর কোনটি?', options: ['>>', '<<', '::', '->'], answerIndex: 1, explanation: '<< অপারেটর দিয়ে ডেটা আউটপুট স্ট্রিমে পাঠানো হয়।' },
+      { question: 'এক্সট্র্যাকশন অপারেটর কোনটি?', options: ['<<', '>>', '&&', '||'], answerIndex: 1, explanation: '>> অপারেটর দিয়ে ইনপুট পড়া হয়।' },
+      { question: 'নতুন লাইন প্রিন্ট করতে কোনটি ব্যবহার করা যায়?', options: ['endl', 'tab', 'eof', 'break'], answerIndex: 0, explanation: 'endl নতুন লাইন দেয় এবং বাফার ফ্লাশ করে।' },
+      { question: 'C++-এ main() ফাংশনের রিটার্ন টাইপ সাধারণত কী হয়?', options: ['void', 'int', 'char', 'float'], answerIndex: 1, explanation: 'স্ট্যান্ডার্ড C++-এ int main() ব্যবহৃত হয়।' },
+      { question: 'std নেমস্পেস এড়াতে কী লেখা যায়?', options: ['std::cout', 'use::cout', 'namespace::cout', 'io::cout'], answerIndex: 0, explanation: 'স্কোপ রেজোলিউশন অপারেটর দিয়ে std::cout লেখা যায়।' },
+      { question: 'সিঙ্গেল-লাইন কমেন্ট শুরু হয় কোন চিহ্ন দিয়ে?', options: ['/*', '//', '#', '--'], answerIndex: 1, explanation: '// দিয়ে সিঙ্গেল-লাইন কমেন্ট লেখা হয়।' },
+      { question: 'মাল্টি-লাইন কমেন্ট কোনটির ভেতরে লেখা হয়?', options: ['/* ... */', '<-- ... -->', '// ... //', '""" ... """'], answerIndex: 0, explanation: '/* এবং */ এর মাঝে মাল্টি-লাইন কমেন্ট থাকে।' },
+      { question: 'প্রোগ্রাম সফলভাবে শেষ হলে main() সাধারণত কী রিটার্ন করে?', options: ['-1', '0', '1', 'null'], answerIndex: 1, explanation: '0 রিটার্ন করা মানে প্রোগ্রাম নির্বিঘ্নে সম্পন্ন হয়েছে।' }
+    ],
+    'Pointers & References': [
+      { question: 'কোন অপারেটর ভেরিয়েবলের মেমোরি অ্যাড্রেস দেয়?', options: ['*', '&', '%', '#'], answerIndex: 1, explanation: 'Address-of অপারেটর হলো &।' },
+      { question: 'পয়েন্টারের মান ডিরেফারেন্স করতে কোন অপারেটর লাগে?', options: ['*', '&', '.', 'sizeof'], answerIndex: 0, explanation: '* দিয়ে পয়েন্টার যে অ্যাড্রেসে পয়েন্ট করে তার মান পাওয়া যায়।' },
+      { question: 'নাল পয়েন্টার নির্দেশ করতে আধুনিক C++-এ কী ব্যবহার করা হয়?', options: ['NULL_PTR', 'nullptr', '0x00', 'none'], answerIndex: 1, explanation: 'C++11 থেকে nullptr টাইপ-সেফ নাল পয়েন্টার হিসেবে ব্যবহৃত হয়।' },
+      { question: 'Reference ভেরিয়েবল কি ডিক্লেয়ারেশনের সময় ইনিশিয়ালাইজ করতে হয়?', options: ['হ্যাঁ, বাধ্যতামূলক', 'না, পরে করলেও চলে', 'শুধু অ্যারেতে', 'শুধু পয়েন্টারে'], answerIndex: 0, explanation: 'Reference সবসময় কোনো বিদ্যমান অবজেক্টের সাথে যুক্ত থাকতে হয়।' },
+      { question: 'Pass-by-reference কেন ব্যবহার করা হয়?', options: ['কপি ওভারহেড কমাতে ও মূল মান বদলাতে', 'কোড বড় করতে', 'কম্পাইলার বন্ধ করতে', 'লুপ এড়াতে'], answerIndex: 0, explanation: 'বড় অবজেক্ট কপি না করে সরাসরি মডিফাই করতে reference কার্যকর।' },
+      { question: 'int* p; এখানে p কী?', options: ['ইন্টিজার ভেরিয়েবল', 'ইন্টিজার পয়েন্টার', 'অ্যারে', 'ফাংশন'], answerIndex: 1, explanation: 'p একটি int টাইপের মেমোরি অ্যাড্রেস ধারণ করে।' },
+      { question: 'ডাইনামিক মেমোরি রিলিজ করতে কোন কি-ওয়ার্ড ব্যবহৃত হয়?', options: ['free', 'delete', 'remove', 'clear'], answerIndex: 1, explanation: 'new দিয়ে নেওয়া মেমোরি delete দিয়ে মুক্ত করা হয়।' },
+      { question: 'ডাইনামিক অ্যারে মুছতে কোনটি সঠিক?', options: ['delete arr;', 'delete[] arr;', 'free(arr);', 'remove[] arr;'], answerIndex: 1, explanation: 'অ্যারের জন্য delete[] ব্যবহার করতে হয়।' },
+      { question: 'Dangling pointer কখন তৈরি হয়?', options: ['মুক্ত করা মেমোরির অ্যাড্রেস ধরে রাখলে', 'ডিক্লেয়ার না করলে', 'const লিখলে', 'int লিখলে'], answerIndex: 0, explanation: 'delete করার পরও পয়েন্টার পুরনো অ্যাড্রেস ধরে রাখলে তা dangling হয়।' },
+      { question: 'const int* p কী বোঝায়?', options: ['পয়েন্টার যে মান দেখায় তা পরিবর্তনযোগ্য নয়', 'পয়েন্টার নিজেই বদলাবে না', 'দুটোই ফিক্সড', 'সিনট্যাক্স এরর'], answerIndex: 0, explanation: 'পয়েন্টেড ভ্যালু const, তবে পয়েন্টার অন্য অ্যাড্রেসে যেতে পারে।' }
+    ],
+    'OOP Concepts': [
+      { question: 'OOP-এর চারটি প্রধান স্তম্ভের একটি কোনটি?', options: ['Encapsulation', 'Compilation', 'Parsing', 'Linking'], answerIndex: 0, explanation: 'Encapsulation, Inheritance, Polymorphism ও Abstraction হলো OOP-এর মূল ধারণা।' },
+      { question: 'ডেটা ও মেথড একসাথে বাঁধার প্রক্রিয়াকে কী বলে?', options: ['Encapsulation', 'Overloading', 'Template', 'Macro'], answerIndex: 0, explanation: 'Class-এর ভেতর ডেটা ও ফাংশন গুছিয়ে রাখাই Encapsulation।' },
+      { question: 'ক্লাসের ইনস্ট্যান্সকে কী বলে?', options: ['Package', 'Object', 'Header', 'Module'], answerIndex: 1, explanation: 'ক্লাস হলো ব্লুপ্রিন্ট এবং Object হলো তার বাস্তব রূপ।' },
+      { question: 'একই নামের ফাংশন ভিন্ন প্যারামিটারসহ থাকলে তাকে কী বলে?', options: ['Function Overloading', 'Recursion', 'Namespace', 'Casting'], answerIndex: 0, explanation: 'একই স্কোপে ভিন্ন সিগনেচারের ফাংশন থাকাকে Overloading বলে।' },
+      { question: 'বেস ক্লাসের ভার্চুয়াল ফাংশন ডিরাইভড ক্লাসে পুনরায় লিখলে কী হয়?', options: ['Overriding', 'Shadowing', 'Inlining', 'hashing'], answerIndex: 0, explanation: 'Runtime polymorphism-এ Function Overriding ব্যবহৃত হয়।' },
+      { question: 'কোন অ্যাক্সেস স্পেসিফায়ার শুধু ক্লাসের ভেতর থেকেই অ্যাক্সেসযোগ্য?', options: ['public', 'private', 'extern', 'auto'], answerIndex: 1, explanation: 'private মেম্বার সরাসরি ক্লাসের বাইরে থেকে অ্যাক্সেস করা যায় না।' },
+      { question: 'Constructor কখন কল হয়?', options: ['অবজেক্ট তৈরি হলে', 'প্রোগ্রাম শেষ হলে', 'লুপ চললে', 'ফাইল খুললে'], answerIndex: 0, explanation: 'নতুন অবজেক্ট ইনিশিয়ালাইজ করার সময় constructor স্বয়ংক্রিয়ভাবে চলে।' },
+      { question: 'Destructor-এর নামের আগে কোন চিহ্ন থাকে?', options: ['~', '!', '@', '$'], answerIndex: 0, explanation: 'C++-এ destructor লেখা হয় ~ClassName() আকারে।' },
+      { question: 'Pure virtual function কীভাবে লেখা হয়?', options: ['= 0;', '= null;', 'virtual;', 'abstract;'], answerIndex: 0, explanation: 'সিনট্যাক্স হলো virtual void fn() = 0;।' },
+      { question: 'Abstract class-এর সরাসরি কী তৈরি করা যায় না?', options: ['Object', 'Pointer', 'Reference', 'Member'], answerIndex: 0, explanation: 'Abstract class-এর সরাসরি অবজেক্ট তৈরি করা যায় না।' }
+    ]
+  },
+  'Java Core': {
+    'JVM & Main Method': [
+      { question: 'JVM-এর পূর্ণরূপ কী?', options: ['Java Virtual Machine', 'Java Variable Method', 'Just Virtual Mode', 'Java Verified Module'], answerIndex: 0, explanation: 'JVM বাইটকোড এক্সিকিউট করে এবং প্ল্যাটফর্ম-নির্ভরতা কমায়।' },
+      { question: 'Java-তে main মেথড সাধারণত কেন static হয়?', options: ['অবজেক্ট ছাড়াই কল করার জন্য', 'মেমোরি বাঁচাতে', 'লুপ দ্রুত করতে', 'ইনহেরিট্যান্স বন্ধ করতে'], answerIndex: 0, explanation: 'প্রোগ্রাম শুরুর সময় কোনো অবজেক্ট না থাকায় JVM সরাসরি main কল করতে পারে।' },
+      { question: 'Java সোর্স কোড কম্পাইল হয়ে কী তৈরি হয়?', options: ['Bytecode (.class)', 'Machine exe only', 'HTML', 'SQL'], answerIndex: 0, explanation: 'javac সোর্স কোডকে প্ল্যাটফর্ম-স্বাধীন Bytecode-এ রূপান্তর করে।' },
+      { question: 'Java-তে main মেথডের স্ট্যান্ডার্ড সিগনেচার কোনটি?', options: ['public static void main(String[] args)', 'private void main()', 'static int main(String args)', 'void main()'], answerIndex: 0, explanation: 'JVM এই সিগনেচার খুঁজে প্রোগ্রাম শুরু করে।' },
+      { question: 'কোনটি JVM-এর অংশ নয়?', options: ['Class Loader', 'Execution Engine', 'Runtime Data Areas', 'SQL Parser'], answerIndex: 3, explanation: 'SQL Parser ডাটাবেজের অংশ, JVM-এর নয়।' },
+      { question: 'WORA-এর অর্থ কী?', options: ['Write Once, Run Anywhere', 'Write Often, Read Always', 'Web Oriented Runtime App', 'Wide Object Runtime Access'], answerIndex: 0, explanation: 'একবার লেখা Java কোড বিভিন্ন OS-এ JVM থাকলে চালানো যায়।' },
+      { question: 'JIT Compiler কী করে?', options: ['হটস্পট বাইটকোডকে নেটিভ কোডে রূপান্তর করে', 'ফাইল ডিলিট করে', 'ক্লাস ডিলিট করে', 'নেটওয়ার্ক বন্ধ করে'], answerIndex: 0, explanation: 'Just-In-Time (JIT) কম্পাইলার রানটাইমে পারফরম্যান্স বাড়ায়।' },
+      { question: 'Garbage Collector-এর কাজ কী?', options: ['অব্যবহৃত অবজেক্টের মেমোরি মুক্ত করা', 'ক্লাস লোড করা', 'সিনট্যাক্স চেক করা', 'প্যাকেজ বানানো'], answerIndex: 0, explanation: 'যেসব অবজেক্ট আর রেফারেন্সড নয়, GC সেগুলোর মেমোরি ফেরত নেয়।' },
+      { question: 'কোন কি-ওয়ার্ড দিয়ে একটি constant ভেরিয়েবল বোঝানো যায়?', options: ['final', 'static', 'volatile', 'transient'], answerIndex: 0, explanation: 'final ভেরিয়েবলের মান একবার সেট হলে বদলানো যায় না।' },
+      { question: 'Java-তে সব ক্লাসের মূল সুপারক্লাস কোনটি?', options: ['Object', 'System', 'String', 'Main'], answerIndex: 0, explanation: 'java.lang.Object সব ক্লাসের রুট সুপারক্লাস।' }
+    ],
+    'Inheritance & Interfaces': [
+      { question: 'একটি ক্লাস অন্য ক্লাসকে ইনহেরিট করতে কোন কি-ওয়ার্ড ব্যবহৃত হয়?', options: ['extends', 'implements', 'inherits', 'derives'], answerIndex: 0, explanation: 'ক্লাস ইনহেরিটেন্সের জন্য extends কি-ওয়ার্ড লাগে।' },
+      { question: 'একটি ক্লাস interface বাস্তবায়ন করতে কোন কি-ওয়ার্ড ব্যবহার করে?', options: ['implements', 'extends', 'uses', 'binds'], answerIndex: 0, explanation: 'Interface বাস্তবায়নে implements ব্যবহৃত হয়।' },
+      { question: 'Java-তে ক্লাসের ক্ষেত্রে কোন ধরনের ইনহেরিট্যান্স সরাসরি অনুমোদিত নয়?', options: ['Multiple class inheritance', 'Single inheritance', 'Multilevel inheritance', 'Hierarchical inheritance'], answerIndex: 0, explanation: 'Diamond problem এড়াতে Java একাধিক সুপারক্লাস ইনহেরিট করতে দেয় না।' },
+      { question: 'একটি ক্লাস কি একাধিক interface implement করতে পারে?', options: ['হ্যাঁ, পারে', 'না, পারে না', 'শুধু abstract ক্লাসে', 'শুধু main ক্লাসে'], answerIndex: 0, explanation: 'কমা দিয়ে একাধিক interface implement করা যায়।' },
+      { question: 'Interface-এর ভেরিয়েবল ডিফল্টভাবে কেমন হয়?', options: ['public static final', 'private', 'protected', 'transient'], answerIndex: 0, explanation: 'Interface ফিল্ডগুলো ডিফল্টভাবে public, static এবং final।' },
+      { question: 'সুপারক্লাসের কনস্ট্রাক্টর বা মেম্বার অ্যাক্সেস করতে কোন কি-ওয়ার্ড ব্যবহৃত হয়?', options: ['super', 'this', 'base', 'parent'], answerIndex: 0, explanation: 'super দিয়ে প্যারেন্ট ক্লাসের রেফারেন্স পাওয়া যায়।' },
+      { question: 'কোন কি-ওয়ার্ড দিয়ে মেথড ওভাররাইডিং প্রতিরোধ করা যায়?', options: ['final', 'public', 'default', 'native'], answerIndex: 0, explanation: 'final মেথড সাবক্লাসে ওভাররাইড করা যায় না।' },
+      { question: 'Java 8-এ interface-এ বডিসহ মেথড লিখতে কোন কি-ওয়ার্ড আসে?', options: ['default', 'struct', 'friend', 'operator'], answerIndex: 0, explanation: 'interface-এ default বা static মেথডের বডি থাকতে পারে।' },
+      { question: 'Upcasting সাধারণত কেমন হয়?', options: ['Implicit / নিরাপদ', 'সবসময় এরর দেয়', 'শুধু অ্যারেতে হয়', 'কখনই হয় না'], answerIndex: 0, explanation: 'সাবক্লাস রেফারেন্সকে সুপারক্লাস রেফারেন্সে রাখা নিরাপদ।' },
+      { question: 'Polymorphism কী সুবিধা দেয়?', options: ['একই ইন্টারফেসে ভিন্ন আচরণ', 'ফাইল কম্প্রেশন', 'ডাটাবেজ ব্যাকআপ', 'লুপ স্কিপ'], answerIndex: 0, explanation: 'একই মেথড কল ভিন্ন অবজেক্টের ক্ষেত্রে ভিন্নভাবে কাজ করতে পারে।' }
+    ],
+    'Exception Handling': [
+      { question: 'যে কোডে exception ঘটতে পারে তা কোন ব্লকে রাখা হয়?', options: ['try', 'catch', 'finally', 'throw'], answerIndex: 0, explanation: 'সন্দেহজনক কোড try ব্লকের ভেতরে লেখা হয়।' },
+      { question: 'Exception ধরতে কোন ব্লক ব্যবহৃত হয়?', options: ['catch', 'else', 'switch', 'case'], answerIndex: 0, explanation: 'try-এর পর catch ব্লক exception হ্যান্ডেল করে।' },
+      { question: 'Exception হোক বা না হোক, কোন ব্লক সাধারণত চলে?', options: ['finally', 'catch', 'throw', 'import'], answerIndex: 0, explanation: 'cleanup কাজের জন্য finally ব্লক ব্যবহৃত হয়।' },
+      { question: 'কোন ক্লাসটি Throwable-এর সরাসরি সাবক্লাস নয়?', options: ['Exception', 'Error', 'String', 'RuntimeException'], answerIndex: 2, explanation: 'String কোনো exception বা error ক্লাস নয়।' },
+      { question: 'মেথড সিগনেচারে checked exception ঘোষণা করতে কোন কি-ওয়ার্ড লাগে?', options: ['throws', 'throw', 'catch', 'assert'], answerIndex: 0, explanation: 'মেথড ডিক্লেয়ারেশনে throws দিয়ে সম্ভাব্য exception জানানো হয়।' },
+      { question: 'একটি নির্দিষ্ট exception অবজেক্ট ছুঁড়ে দিতে কোন কি-ওয়ার্ড লাগে?', options: ['throw', 'throws', 'finally', 'return'], answerIndex: 0, explanation: 'throw new Exception(...) দিয়ে exception ছোঁড়া হয়।' },
+      { question: 'ArithmeticException সাধারণত কখন ঘটে?', options: ['শূন্য দিয়ে ভাগ করলে', 'ফাইল না পেলে', 'অ্যারে আউট অব বাউন্ড হলে', 'নাল কল করলে'], answerIndex: 0, explanation: 'ইন্টিজারকে 0 দিয়ে ভাগ করলে ArithmeticException হয়।' },
+      { question: 'ArrayIndexOutOfBoundsException কখন হয়?', options: ['অবৈধ ইনডেক্সে অ্যাক্সেস করলে', 'মেমোরি পূর্ণ হলে', 'ক্লাস না পেলে', 'টাইপ মিললে'], answerIndex: 0, explanation: 'অ্যারের সাইজের বাইরে ইনডেক্স ব্যবহার করলে এটি ঘটে।' },
+      { question: 'NullPointerException কখন হয়?', options: ['null রেফারেন্সের মেম্বার/মেথড ব্যবহার করলে', 'লুপ শেষ হলে', 'int লিখলে', 'import ভুল হলে'], answerIndex: 0, explanation: 'null অবজেক্টের ওপর অপারেশন করলে NullPointerException আসে।' },
+      { question: 'Checked exception কোথায় চেক করা হয়?', options: ['Compile time-এ', 'শুধু ডাটাবেজে', 'ব্রাউজারে', 'নেটওয়ার্কে'], answerIndex: 0, explanation: 'Checked exception কম্পাইলেশনের সময়ই ধরা পড়ে।' }
+    ]
+  },
+  'MySQL Relational DB': {
+    'Basic CRUD Queries': [
+      { question: 'CRUD-এর পূর্ণরূপ কী?', options: ['Create, Read, Update, Delete', 'Copy, Run, Undo, Drop', 'Connect, Read, Upload, Delete', 'Create, Remove, Use, Dump'], answerIndex: 0, explanation: 'CRUD হলো ডাটাবেজের চারটি মৌলিক অপারেশন।' },
+      { question: 'ডাটাবেজ থেকে ডেটা পড়তে কোন SQL কমান্ড ব্যবহৃত হয়?', options: ['SELECT', 'INSERT', 'UPDATE', 'DELETE'], answerIndex: 0, explanation: 'SELECT দিয়ে টেবিল থেকে রো/কলাম পড়া হয়।' },
+      { question: 'নতুন রেকর্ড যুক্ত করতে কোন স্টেটমেন্ট লাগে?', options: ['INSERT INTO', 'SELECT FROM', 'DROP TABLE', 'ALTER INDEX'], answerIndex: 0, explanation: 'INSERT INTO দিয়ে টেবিলে নতুন ডেটা ঢোকানো হয়।' },
+      { question: 'বিদ্যমান ডেটা পরিবর্তন করতে কোন কমান্ড ব্যবহৃত হয়?', options: ['UPDATE', 'SELECT', 'CREATE', 'DESCRIBE'], answerIndex: 0, explanation: 'UPDATE ... SET ... WHERE দিয়ে ডেটা আপডেট করা হয়।' },
+      { question: 'টেবিল থেকে নির্দিষ্ট রেকর্ড মুছতে কোনটি ব্যবহৃত হয়?', options: ['DELETE FROM', 'DROP DATABASE', 'TRUNCATE COLUMN', 'RENAME ROW'], answerIndex: 0, explanation: 'DELETE FROM table_name WHERE ... দিয়ে রেকর্ড ডিলিট হয়।' },
+      { question: 'কোন ক্লজ ছাড়া UPDATE বা DELETE চালালে কী ঝুঁকি থাকে?', options: ['সব রো প্রভাবিত হতে পারে', 'ডাটাবেজ ইনস্টল হয়', 'কলাম ডিলিট হয়', 'কোনো প্রভাব পড়ে না'], answerIndex: 0, explanation: 'WHERE না দিলে টেবিলের সব সারিতে অপারেশন ঘটে।' },
+      { question: 'টেবিলের সব কলাম নির্বাচন করতে কোন চিহ্ন লাগে?', options: ['*', '#', '@', '&'], answerIndex: 0, explanation: 'SELECT * FROM users সব কলাম রিটার্ন করে।' },
+      { question: 'ফলাফল সাজাতে কোন ক্লজ ব্যবহৃত হয়?', options: ['ORDER BY', 'GROUP BY', 'HAVING', 'DISTINCT'], answerIndex: 0, explanation: 'ORDER BY ASC বা DESC দিয়ে ডেটা সাজানো যায়।' },
+      { question: 'ডুপ্লিকেট মান বাদ দিতে কোন কি-ওয়ার্ড লাগে?', options: ['DISTINCT', 'UNIQUE_ROW', 'SINGLE', 'ONLY'], answerIndex: 0, explanation: 'SELECT DISTINCT কলামের স্বতন্ত্র মান দেয়।' },
+      { question: 'শর্ত জুড়ে দিতে কোন ক্লজ ব্যবহার করা হয়?', options: ['WHERE', 'INTO', 'VALUES', 'SET'], answerIndex: 0, explanation: 'WHERE শর্ত অনুযায়ী রেকর্ড ফিল্টার করে।' }
+    ],
+    'INNER & LEFT JOINs': [
+      { question: 'INNER JOIN কী ধরনের রো রিটার্ন করে?', options: ['উভয় টেবিলে ম্যাচ করা রো', 'শুধু বাম টেবিলের সব রো', 'শুধু ডান টেবিলের সব রো', 'কোনো রো নয়'], answerIndex: 0, explanation: 'INNER JOIN শুধু জয়েন শর্ত মিলে যাওয়া রো দেখায়।' },
+      { question: 'LEFT JOIN কী করে?', options: ['বাম টেবিলের সব রো ও ডানের ম্যাচিং ডেটা দেয়', 'শুধু ডান টেবিল দেয়', 'টেবিল ডিলিট করে', 'ইনডেক্স মুছে ফেলে'], answerIndex: 0, explanation: 'বাম টেবিলে ম্যাচ না থাকলে ডানের কলামগুলো NULL আসে।' },
+      { question: 'জয়েন শর্ত লিখতে সাধারণত কোন কি-ওয়ার্ড ব্যবহৃত হয়?', options: ['ON', 'WHERE_JOIN', 'BY', 'AT'], answerIndex: 0, explanation: 'JOIN ... ON t1.id = t2.user_id এভাবে শর্ত দেওয়া হয়।' },
+      { question: 'LEFT JOIN-এ ডান টেবিলে মিল না পেলে কী মান আসে?', options: ['NULL', '0000', 'ERROR', 'TRUE'], answerIndex: 0, explanation: 'অমিল কলামের জায়গায় NULL বসে।' },
+      { question: 'টেবিলের সংক্ষিপ্ত নাম বা alias কীভাবে দেওয়া যায়?', options: ['FROM orders o', 'AS_ALIAS orders o', 'ALIAS o', 'NAME o'], answerIndex: 0, explanation: 'FROM orders o বা FROM orders AS o লেখা যায়।' },
+      { question: 'দুটি টেবিলের কলামের নাম এক হলে কীভাবে আলাদা করা হয়?', options: ['table.column', 'table->column', 'table::column', 'table#column'], answerIndex: 0, explanation: 'ডট (.) নোটেশন দিয়ে টেবিলের কলাম নির্দিষ্ট করা হয়।' },
+      { question: 'কোন জয়েনে ম্যাচ না পাওয়া বাম রোও তালিকায় থাকে?', options: ['LEFT JOIN', 'INNER JOIN', 'CROSS JOIN', 'NATURAL JOIN'], answerIndex: 0, explanation: 'LEFT JOIN বাম টেবিলের সব রো সংরক্ষণ করে।' },
+      { question: 'একই টেবিলকে নিজের সাথে জয়েন করলে কী বলে?', options: ['Self Join', 'Outer Join', 'Union Join', 'Cross Join'], answerIndex: 0, explanation: 'ভিন্ন alias ব্যবহার করে একই টেবিল জয়েন করাকে Self Join বলে।' },
+      { question: 'ON শর্ত ছাড়া JOIN লিখলে কী হতে পারে?', options: ['Syntax error বা Cartesian product', 'ডেটা এনক্রিপ্ট হয়', 'ইনডেক্স তৈরি হয়', 'কুইজ শুরু হয়'], answerIndex: 0, explanation: 'MySQL-এ INNER/LEFT JOIN-এ ON বা USING আবশ্যক।' },
+      { question: 'LEFT JOIN দিয়ে কোন রেকর্ডগুলোর ম্যাচ নেই তা বের করতে কোন শর্ত লাগে?', options: ['WHERE right_table.id IS NULL', 'WHERE right_table.id = 0', 'WHERE left_table.id IS NULL', 'ORDER BY NULL'], answerIndex: 0, explanation: 'ডান টেবিলের key IS NULL হলে অমিল রো পাওয়া যায়।' }
+    ],
+    'Database Indexing': [
+      { question: 'Database Index-এর প্রধান কাজ কী?', options: ['ডেটা দ্রুত খুঁজে বের করা', 'ডেটা এনক্রিপ্ট করা', 'ব্যাকআপ নেওয়া', 'কানেকশন বন্ধ করা'], answerIndex: 0, explanation: 'Index সার্চ স্পিড বাড়ায় এবং ফুল-টেবিল স্ক্যান কমায়।' },
+      { question: 'MySQL InnoDB-তে প্রাইমারি কি সাধারণত কোন স্ট্রাকচারে থাকে?', options: ['Clustered B+ Tree', 'Linked List', 'Stack', 'Queue'], answerIndex: 0, explanation: 'InnoDB-তে Primary Key হলো Clustered Index (B+ Tree)।' },
+      { question: 'নতুন ইনডেক্স তৈরি করতে কোন কমান্ড ব্যবহৃত হয়?', options: ['CREATE INDEX', 'MAKE SEARCH', 'ADD CACHE', 'BUILD VIEW'], answerIndex: 0, explanation: 'CREATE INDEX idx_name ON table(col) দিয়ে ইনডেক্স বানানো হয়।' },
+      { question: 'ইনডেক্স বেশি থাকলে কোন অপারেশনে কিছুটা খরচ/সময় বাড়তে পারে?', options: ['INSERT, UPDATE, DELETE', 'শুধু SELECT', 'শুধু USE', 'শুধু SHOW'], answerIndex: 0, explanation: 'ডেটা বদলালে সংশ্লিষ্ট ইনডেক্সও আপডেট করতে হয়।' },
+      { question: 'কোয়েরি কীভাবে ইনডেক্স ব্যবহার করছে তা দেখতে কোন কমান্ড লাগে?', options: ['EXPLAIN', 'REPAIR', 'FLUSH', 'GRANT'], answerIndex: 0, explanation: 'EXPLAIN SELECT ... দিয়ে execution plan ও key ব্যবহার দেখা যায়।' },
+      { question: 'Composite index (col1, col2)-এ কোন নিয়মটি গুরুত্বপূর্ণ?', options: ['Leftmost prefix rule', 'Rightmost suffix rule', 'Random order rule', 'No order rule'], answerIndex: 0, explanation: 'বাম দিকের কলাম থেকে শুরু করে শর্ত মিললে ইনডেক্স সবচেয়ে ভালো কাজ করে।' },
+      { question: 'ইনডেক্সড কলামের ওপর সরাসরি ফাংশন চালালে কী হতে পারে?', options: ['ইনডেক্স ব্যবহার নাও হতে পারে', 'কোয়েরি ক্র্যাশ করে', 'টেবিল ডিলিট হয়', 'ডেটা লক হয়'], answerIndex: 0, explanation: 'যেমন WHERE YEAR(created_at) = 2026 অনেক সময় ইনডেক্স এড়িয়ে যায়।' },
+      { question: 'Covering Index কী?', options: ['যে ইনডেক্স কোয়েরির প্রয়োজনীয় সব কলাম ধারণ করে', 'যে ইনডেক্স টেবিল মুছে ফেলে', 'শুধু টেক্সট ফাইল', 'ব্যাকআপ টেবিল'], answerIndex: 0, explanation: 'Covering index হলে টেবিলের মূল রো না খুলেও উত্তর পাওয়া যায়।' },
+      { question: 'UNIQUE ইনডেক্স কী নিশ্চিত করে?', options: ['কলাম বা কলামসমূহে ডুপ্লিকেট মান থাকে না', 'সব মান NULL হয়', 'টেবিল রিড-অনলি হয়', 'কানেকশন দ্রুত হয়'], answerIndex: 0, explanation: 'UNIQUE constraint ডুপ্লিকেট এন্ট্রি আটকায়।' },
+      { question: 'ইনডেক্স মুছে ফেলতে কোন কমান্ড ব্যবহৃত হয়?', options: ['DROP INDEX ... ON ...', 'REMOVE KEY', 'DELETE INDEX', 'CLEAR TREE'], answerIndex: 0, explanation: 'ALTER TABLE t DROP INDEX idx_name বা DROP INDEX idx_name ON t ব্যবহৃত হয়।' }
+    ]
+  }
+};
+
+const buildFallbackQuizQuestions = (courseTitle, lessonTitle, count = 10, avoidList = []) => {
+  const bank =
+    FALLBACK_QUIZ_BANK[courseTitle]?.[lessonTitle] ||
+    Object.values(FALLBACK_QUIZ_BANK).flatMap((lessonMap) => Object.values(lessonMap).flat());
+
+  const avoidSet = new Set(avoidList);
+  const unseen = bank.filter((q) => !avoidSet.has(q.question));
+  const pool = unseen.length >= count ? unseen : [...unseen, ...bank.filter((q) => avoidSet.has(q.question))];
+
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(count, shuffled.length)).map((item, idx) => ({
+    id: `fallback-${Date.now()}-${idx}`,
+    question: item.question,
+    options: item.options,
+    answerIndex: item.answerIndex,
+    explanation: item.explanation
+  }));
+};
 
 const HMI_STYLES = `
 .hmi-root {
@@ -311,6 +538,119 @@ const HMI_STYLES = `
 }
 `;
 
+const DEFAULT_MESS_WEEKLY_MENU = [
+  { dayIndex: 0, day: 'শনি', morning: 'ডিম ভুনা + সবজি', night: 'মাছ + ভাজি' },
+  { dayIndex: 1, day: 'রবি', morning: 'মুরগি + শাঁক', night: 'ডিম ভুনা + ডাল' },
+  { dayIndex: 2, day: 'সোম', morning: 'মাছ + ভাজি', night: 'মুরগি + শাঁক' },
+  { dayIndex: 3, day: 'মঙ্গল', morning: 'ডিম ভুনা + সবজি', night: 'খিচুড়ি + সালাদ + মুরগি মাংস' },
+  { dayIndex: 4, day: 'বুধ', morning: 'মাছ + ভাজি', night: 'ডিম ভাজা + ডাল' },
+  { dayIndex: 5, day: 'বৃহঃ', morning: 'মুরগি + ভাজি', night: 'মাছ + ভর্তা' },
+  { dayIndex: 6, day: 'শুক্র', morning: 'ডিম ভুনা + ডাল', night: 'মুরগি + ভাজি' }
+];
+
+const DEFAULT_MESS_RULES = [
+  'কেউ যদি কোনো মেনু পরিবর্তন করে রান্না করতে বলে তাহলে ৫ জন সদস্যের অনুমতি নিয়ে রান্না করতে হবে, অন্যথায় ওই বাজার লিস্টে যুক্ত হবে না।',
+  'নিজ দায়িত্বে কী কী বাজার আছে এবং কী কী বাজার প্রয়োজন, তা দেখে বাজার করতে হবে। সাথে সাথে লিস্ট গ্রুপে আপলোড করতে হবে।',
+  'কেউ মাসে ৩ দিনের বেশি ডিম ভাজি বা নুডলস রান্না করতে পারবে না।'
+];
+
+const DEFAULT_MESS_MEMBERS = [
+  { id: 1, slot: 1, name: 'সদস্য ১', extraDeposit: 0, extraAddOn: 0, extraNote: '' },
+  { id: 2, slot: 2, name: 'সদস্য ২', extraDeposit: 0, extraAddOn: 0, extraNote: '' },
+  { id: 3, slot: 3, name: 'সদস্য ৩', extraDeposit: 0, extraAddOn: 0, extraNote: '' },
+  { id: 4, slot: 4, name: 'সদস্য ৪', extraDeposit: 0, extraAddOn: 0, extraNote: '' },
+  { id: 5, slot: 5, name: 'সদস্য ৫', extraDeposit: 0, extraAddOn: 0, extraNote: '' }
+];
+
+const DEFAULT_MESS_PHASES = [
+  { id: 1, phaseNumber: 1, phaseLabel: 'ধাপ ১', dateRange: '১ - ৭ তারিখ', memberId: 1, amount: 0, note: '', dateEntries: [{ id: 101, date: '', amount: 0, note: '' }] },
+  { id: 2, phaseNumber: 2, phaseLabel: 'ধাপ ২', dateRange: '৭ - ১৪ তারিখ', memberId: 2, amount: 0, note: '', dateEntries: [{ id: 201, date: '', amount: 0, note: '' }] },
+  { id: 3, phaseNumber: 3, phaseLabel: 'ধাপ ৩', dateRange: '১৪ - ২১ তারিখ', memberId: 3, amount: 0, note: '', dateEntries: [{ id: 301, date: '', amount: 0, note: '' }] },
+  { id: 4, phaseNumber: 4, phaseLabel: 'ধাপ ৪', dateRange: '২১ - ২৮ তারিখ', memberId: 4, amount: 0, note: '', dateEntries: [{ id: 401, date: '', amount: 0, note: '' }] },
+  { id: 5, phaseNumber: 5, phaseLabel: 'ধাপ ৫', dateRange: '২৮ - ৩৫ তারিখ', memberId: 5, amount: 0, note: '', dateEntries: [{ id: 501, date: '', amount: 0, note: '' }] }
+];
+
+const DEFAULT_MESS_BILLS = [
+  { id: 1, name: 'বাসা খরচ (ভাড়া)', amount: 0 },
+  { id: 2, name: 'বুয়া বিল', amount: 0 },
+  { id: 3, name: 'ওয়াইফাই বিল', amount: 0 },
+  { id: 4, name: 'বিদ্যুৎ বিল', amount: 0 },
+  { id: 5, name: 'গ্যাস বিল', amount: 0 }
+];
+
+const BANGLA_WEEKDAYS_BY_JS_DAY = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহঃ', 'শুক্র', 'শনি'];
+
+const formatIsoDate = (dateObj) => {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const parseIsoDateSafe = (isoStr) => {
+  if (!isoStr || typeof isoStr !== 'string') return null;
+  const cleaned = isoStr.trim();
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(cleaned);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const dt = new Date(year, month - 1, day);
+  if (
+    Number.isNaN(dt.getTime()) ||
+    dt.getFullYear() !== year ||
+    dt.getMonth() !== month - 1 ||
+    dt.getDate() !== day
+  ) {
+    return null;
+  }
+  return dt;
+};
+
+const getBanglaWeekdayFromIso = (isoStr, fallbackDay) => {
+  const dt = parseIsoDateSafe(isoStr);
+  if (!dt) return fallbackDay || 'শনি';
+  return BANGLA_WEEKDAYS_BY_JS_DAY[dt.getDay()] || fallbackDay || 'শনি';
+};
+
+const syncSheetWithCalendar = (sheetRows, startIsoDate, menuList = DEFAULT_MESS_WEEKLY_MENU) => {
+  const baseDate = parseIsoDateSafe(startIsoDate) || new Date();
+  return Array.from({ length: 35 }, (_, idx) => {
+    const existingRow = Array.isArray(sheetRows) && sheetRows[idx] ? sheetRows[idx] : null;
+    const dayNumber = idx + 1;
+    const rowDateObj = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + idx);
+    const isoDate = formatIsoDate(rowDateObj);
+    const weekday = getBanglaWeekdayFromIso(isoDate, menuList[idx % 7]?.day);
+    const matchedMenu =
+      menuList.find((m) => m.day === weekday) ||
+      menuList[idx % 7] ||
+      DEFAULT_MESS_WEEKLY_MENU[idx % 7];
+
+    return {
+      day: dayNumber,
+      calendarDate: isoDate,
+      weekday,
+      morningMenu: matchedMenu.morning,
+      nightMenu: matchedMenu.night,
+      mealsByMember: existingRow?.mealsByMember || {}
+    };
+  });
+};
+
+const buildDefault35DaySheet = (members, menuList = DEFAULT_MESS_WEEKLY_MENU, startIsoDate = formatIsoDate(new Date())) => {
+  const baseRows = syncSheetWithCalendar([], startIsoDate, menuList);
+  return baseRows.map((row) => {
+    const mealsByMember = {};
+    members.forEach((m) => {
+      mealsByMember[m.id] = 0;
+    });
+    return {
+      ...row,
+      mealsByMember
+    };
+  });
+};
+
 function App() {
   // Authentication State
   const [token, setToken] = useState(() => localStorage.getItem('token') || '');
@@ -324,12 +664,11 @@ function App() {
   const STORAGE_KEY_CGPA = `user_cgpa_${userEmailKey}`;
   const STORAGE_KEY_TRANSACTIONS = `user_transactions_${userEmailKey}`;
   const STORAGE_KEY_BUDGET = `user_budget_${userEmailKey}`;
+  const STORAGE_KEY_MESS = `user_mess_state_${userEmailKey}`;
 
   // App & Theme State
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState('');
   const [coursesCount, setCoursesCount] = useState(0);
 
   // Toast Notification State
@@ -362,8 +701,113 @@ function App() {
   const [nextCredits, setNextCredits] = useState('');
   const [requiredGpa, setRequiredGpa] = useState(null);
 
-  // Learning Hub Active Lesson
+  // Learning Hub Active Lesson & Dynamic Quiz State
   const [activeLesson, setActiveLesson] = useState(null);
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
+  const [quizError, setQuizError] = useState('');
+  const [quizSourceNote, setQuizSourceNote] = useState('');
+  const [seenQuestions, setSeenQuestions] = useState([]);
+
+  // House & Bills (Mess Management) State
+  const [messStartDate, setMessStartDate] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_MESS) || 'null');
+      return saved?.startDate || formatIsoDate(new Date());
+    } catch {
+      return formatIsoDate(new Date());
+    }
+  });
+  const [messMembers, setMessMembers] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_MESS) || 'null');
+      return Array.isArray(saved?.members) && saved.members.length > 0 ? saved.members : DEFAULT_MESS_MEMBERS;
+    } catch {
+      return DEFAULT_MESS_MEMBERS;
+    }
+  });
+  const [messWeeklyMenu, setMessWeeklyMenu] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_MESS) || 'null');
+      return Array.isArray(saved?.weeklyMenu) && saved.weeklyMenu.length > 0 ? saved.weeklyMenu : DEFAULT_MESS_WEEKLY_MENU;
+    } catch {
+      return DEFAULT_MESS_WEEKLY_MENU;
+    }
+  });
+  const [messRules] = useState(DEFAULT_MESS_RULES);
+  const [messBazaarPhases, setMessBazaarPhases] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_MESS) || 'null');
+      if (Array.isArray(saved?.bazaarPhases) && saved.bazaarPhases.length > 0) {
+        return saved.bazaarPhases.map((p, idx) => ({
+          ...p,
+          dateEntries: Array.isArray(p.dateEntries) && p.dateEntries.length > 0
+            ? p.dateEntries
+            : [{ id: (idx + 1) * 100 + 1, date: '', amount: parseFloat(p.amount) || 0, note: p.note || '' }]
+        }));
+      }
+      return DEFAULT_MESS_PHASES;
+    } catch {
+      return DEFAULT_MESS_PHASES;
+    }
+  });
+  const [messBazaarNotes, setMessBazaarNotes] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_MESS) || 'null');
+      return Array.isArray(saved?.bazaarNotes) ? saved.bazaarNotes : [];
+    } catch {
+      return [];
+    }
+  });
+  const [newBazaarNoteDate, setNewBazaarNoteDate] = useState(() => formatIsoDate(new Date()));
+  const [newBazaarNoteTitle, setNewBazaarNoteTitle] = useState('');
+  const [newBazaarNoteItems, setNewBazaarNoteItems] = useState('');
+
+  const [messMealSheet35, setMessMealSheet35] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_MESS) || 'null');
+      const startIso = saved?.startDate || formatIsoDate(new Date());
+      const menuList = Array.isArray(saved?.weeklyMenu) && saved.weeklyMenu.length > 0 ? saved.weeklyMenu : DEFAULT_MESS_WEEKLY_MENU;
+      if (Array.isArray(saved?.mealSheet35) && saved.mealSheet35.length === 35) {
+        const synced = syncSheetWithCalendar(saved.mealSheet35, startIso, menuList);
+        return synced.map((row, idx) => {
+          const customDate = saved.mealSheet35[idx]?.calendarDate;
+          if (customDate && parseIsoDateSafe(customDate)) {
+            const wd = getBanglaWeekdayFromIso(customDate, row.weekday);
+            const matched = menuList.find((m) => m.day === wd) || menuList[idx % 7];
+            return {
+              ...row,
+              calendarDate: customDate,
+              weekday: wd,
+              morningMenu: matched.morning,
+              nightMenu: matched.night,
+              mealsByMember: saved.mealSheet35[idx]?.mealsByMember || row.mealsByMember
+            };
+          }
+          return {
+            ...row,
+            mealsByMember: saved.mealSheet35[idx]?.mealsByMember || row.mealsByMember
+          };
+        });
+      }
+      const mList = Array.isArray(saved?.members) && saved.members.length > 0 ? saved.members : DEFAULT_MESS_MEMBERS;
+      return buildDefault35DaySheet(mList, menuList, startIso);
+    } catch {
+      return buildDefault35DaySheet(DEFAULT_MESS_MEMBERS, DEFAULT_MESS_WEEKLY_MENU, formatIsoDate(new Date()));
+    }
+  });
+  const [messUtilityBills, setMessUtilityBills] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_MESS) || 'null');
+      return Array.isArray(saved?.utilityBills) && saved.utilityBills.length > 0 ? saved.utilityBills : DEFAULT_MESS_BILLS;
+    } catch {
+      return DEFAULT_MESS_BILLS;
+    }
+  });
+  const [newMessBillTitle, setNewMessBillTitle] = useState('');
+  const [newMessBillAmount, setNewMessBillAmount] = useState('');
 
   // UMS Quick Access & 3D Smart Card State (Link text hidden in UI)
   const umsUrl = 'https://ums.seu.edu.bd/sign-in?redirectURL=%2Fdashboard';
@@ -492,6 +936,44 @@ function App() {
       });
   }, [token]);
 
+  const applyMessServerState = useCallback((data) => {
+    if (!data) return;
+    if (Array.isArray(data.members) && data.members.length > 0) setMessMembers(data.members);
+    if (Array.isArray(data.weeklyMenu) && data.weeklyMenu.length > 0) setMessWeeklyMenu(data.weeklyMenu);
+    if (Array.isArray(data.bazaarPhases) && data.bazaarPhases.length > 0) {
+      setMessBazaarPhases((prev) =>
+        data.bazaarPhases.map((serverP, idx) => {
+          const localMatch = prev.find((lp) => Number(lp.phaseNumber) === Number(serverP.phaseNumber));
+          const serverAmt = parseFloat(serverP.amount) || 0;
+          const localEntries = localMatch?.dateEntries;
+          const localEntriesSum = Array.isArray(localEntries)
+            ? localEntries.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
+            : 0;
+          const entries =
+            Array.isArray(localEntries) && localEntries.length > 0 && (localEntriesSum > 0 || serverAmt === 0)
+              ? localEntries
+              : [{ id: (idx + 1) * 100 + 1, date: '', amount: serverAmt, note: serverP.note || '' }];
+          return {
+            ...serverP,
+            dateEntries: entries
+          };
+        })
+      );
+    }
+    if (Array.isArray(data.mealSheet35) && data.mealSheet35.length === 35) {
+      setMessMealSheet35((prev) =>
+        prev.map((localRow, idx) => {
+          const srvRow = data.mealSheet35[idx] || {};
+          return {
+            ...localRow,
+            mealsByMember: srvRow.mealsByMember || localRow.mealsByMember || {}
+          };
+        })
+      );
+    }
+    if (Array.isArray(data.utilityBills)) setMessUtilityBills(data.utilityBills);
+  }, []);
+
   // Load user-specific data from MySQL (with localStorage fallback)
   useEffect(() => {
     const savedTxn = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
@@ -506,6 +988,20 @@ function App() {
     setTransactions(localTxns);
     setMonthlyBudget(localBudget);
     setCgpaData(localCgpa);
+
+    let parsedMess = null;
+    try {
+      const savedMessRaw = localStorage.getItem(STORAGE_KEY_MESS);
+      if (savedMessRaw) {
+        parsedMess = JSON.parse(savedMessRaw);
+        applyMessServerState(parsedMess);
+        if (parsedMess?.startDate) setMessStartDate(parsedMess.startDate);
+        if (Array.isArray(parsedMess?.bazaarNotes)) setMessBazaarNotes(parsedMess.bazaarNotes);
+        if (Array.isArray(parsedMess?.mealSheet35) && parsedMess.mealSheet35.length === 35) {
+          setMessMealSheet35(parsedMess.mealSheet35);
+        }
+      }
+    } catch {}
 
     const activeToken = token || localStorage.getItem('token');
     if (!activeToken) {
@@ -555,8 +1051,370 @@ function App() {
       })
       .catch(() => {});
 
+    axios
+      .get(`${API_BASE}/mess/state`, { headers: { Authorization: `Bearer ${activeToken}` } })
+      .then((res) => {
+        if (res.data) {
+          applyMessServerState(res.data);
+          setMessBazaarNotes((prevNotes) => {
+            const currentSaved = (() => {
+              try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY_MESS) || 'null');
+              } catch {
+                return null;
+              }
+            })();
+            const mergedNotes = Array.isArray(currentSaved?.bazaarNotes) && currentSaved.bazaarNotes.length > 0
+              ? currentSaved.bazaarNotes
+              : prevNotes;
+            const mergedStart = currentSaved?.startDate || parsedMess?.startDate || messStartDate;
+            const mergedSheet = Array.isArray(currentSaved?.mealSheet35) && currentSaved.mealSheet35.length === 35
+              ? currentSaved.mealSheet35
+              : messMealSheet35;
+            localStorage.setItem(
+              STORAGE_KEY_MESS,
+              JSON.stringify({
+                ...res.data,
+                startDate: mergedStart,
+                bazaarNotes: mergedNotes,
+                mealSheet35: mergedSheet
+              })
+            );
+            return mergedNotes;
+          });
+        }
+      })
+      .catch(() => {});
+
     fetchUserCoursesCount(activeToken);
-  }, [token, STORAGE_KEY_TRANSACTIONS, STORAGE_KEY_BUDGET, STORAGE_KEY_CGPA, fetchUserCoursesCount]);
+  }, [token, STORAGE_KEY_TRANSACTIONS, STORAGE_KEY_BUDGET, STORAGE_KEY_CGPA, STORAGE_KEY_MESS, fetchUserCoursesCount, applyMessServerState]);
+
+  // Save Mess state to localStorage whenever updated
+  useEffect(() => {
+    const messSnapshot = {
+      startDate: messStartDate,
+      members: messMembers,
+      weeklyMenu: messWeeklyMenu,
+      bazaarPhases: messBazaarPhases,
+      bazaarNotes: messBazaarNotes,
+      mealSheet35: messMealSheet35,
+      utilityBills: messUtilityBills
+    };
+    localStorage.setItem(STORAGE_KEY_MESS, JSON.stringify(messSnapshot));
+  }, [messStartDate, messMembers, messWeeklyMenu, messBazaarPhases, messBazaarNotes, messMealSheet35, messUtilityBills, STORAGE_KEY_MESS]);
+
+  // Mess Handlers (State + MySQL Sync)
+  const handleMessMemberField = async (memberId, field, rawValue) => {
+    const nextValue =
+      field === 'extraAddOn' || field === 'extraDeposit'
+        ? Math.max(0, parseFloat(rawValue) || 0)
+        : rawValue;
+
+    setMessMembers((prev) =>
+      prev.map((m) => (m.id === memberId ? { ...m, [field]: nextValue } : m))
+    );
+
+    try {
+      const res = await axios.put(
+        `${API_BASE}/mess/members/${memberId}`,
+        { [field]: nextValue },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data) applyMessServerState(res.data);
+    } catch {}
+  };
+
+  const handleMessMenuField = async (dayIndex, field, value) => {
+    const updatedMenu = messWeeklyMenu.map((item, idx) =>
+      idx === dayIndex ? { ...item, [field]: value } : item
+    );
+    setMessWeeklyMenu(updatedMenu);
+    setMessMealSheet35((prev) =>
+      prev.map((row, idx) => {
+        const wd = getBanglaWeekdayFromIso(row.calendarDate, updatedMenu[idx % 7]?.day);
+        const matched = updatedMenu.find((m) => m.day === wd) || updatedMenu[idx % 7] || DEFAULT_MESS_WEEKLY_MENU[idx % 7];
+        return {
+          ...row,
+          weekday: wd,
+          morningMenu: matched.morning,
+          nightMenu: matched.night
+        };
+      })
+    );
+
+    try {
+      const res = await axios.put(
+        `${API_BASE}/mess/menu/${dayIndex}`,
+        { [field]: value },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data) applyMessServerState(res.data);
+    } catch {}
+  };
+
+  const syncPhaseTotalsToBackend = async (phaseNumber, updatedPhaseObj) => {
+    try {
+      const res = await axios.put(
+        `${API_BASE}/mess/bazaar-phases/${phaseNumber}`,
+        {
+          dateRange: updatedPhaseObj.dateRange,
+          memberId: updatedPhaseObj.memberId,
+          amount: updatedPhaseObj.amount,
+          note: updatedPhaseObj.note
+        },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data) applyMessServerState(res.data);
+    } catch {}
+  };
+
+  const handleMessPhaseField = async (phaseNumber, field, rawValue) => {
+    const nextValue =
+      field === 'amount'
+        ? Math.max(0, parseFloat(rawValue) || 0)
+        : field === 'memberId'
+        ? Number(rawValue)
+        : rawValue;
+
+    let targetSnapshot = null;
+    setMessBazaarPhases((prev) =>
+      prev.map((p) => {
+        if (p.phaseNumber !== phaseNumber) return p;
+        const nextEntries =
+          field === 'amount'
+            ? (Array.isArray(p.dateEntries) && p.dateEntries.length > 0
+                ? p.dateEntries.map((entry, idx) => (idx === 0 ? { ...entry, amount: nextValue } : entry))
+                : [{ id: Date.now(), date: '', amount: nextValue, note: p.note || '' }])
+            : p.dateEntries;
+        const nextObj = { ...p, [field]: nextValue, dateEntries: nextEntries };
+        targetSnapshot = nextObj;
+        return nextObj;
+      })
+    );
+
+    if (targetSnapshot) {
+      await syncPhaseTotalsToBackend(phaseNumber, targetSnapshot);
+    }
+  };
+
+  const handleAddPhaseDateEntry = (phaseNumber) => {
+    setMessBazaarPhases((prev) =>
+      prev.map((p) => {
+        if (p.phaseNumber !== phaseNumber) return p;
+        const currentEntries = Array.isArray(p.dateEntries) ? p.dateEntries : [];
+        return {
+          ...p,
+          dateEntries: [
+            ...currentEntries,
+            { id: Date.now() + Math.floor(Math.random() * 1000), date: formatIsoDate(new Date()), amount: 0, note: '' }
+          ]
+        };
+      })
+    );
+  };
+
+  const handlePhaseDateEntryChange = async (phaseNumber, entryId, field, rawValue) => {
+    const nextVal = field === 'amount' ? Math.max(0, parseFloat(rawValue) || 0) : rawValue;
+    let targetSnapshot = null;
+
+    setMessBazaarPhases((prev) =>
+      prev.map((p) => {
+        if (p.phaseNumber !== phaseNumber) return p;
+        const nextEntries = (Array.isArray(p.dateEntries) ? p.dateEntries : []).map((entry) =>
+          entry.id === entryId ? { ...entry, [field]: nextVal } : entry
+        );
+        const totalAmt = nextEntries.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+        const combinedNote = nextEntries
+          .filter((e) => e.date || e.note || (parseFloat(e.amount) || 0) > 0)
+          .map((e) => `${e.date ? `[${e.date}] ` : ''}${e.note || 'বাজার'}${parseFloat(e.amount) ? ` (৳${parseFloat(e.amount)})` : ''}`)
+          .join(', ');
+        const nextObj = {
+          ...p,
+          dateEntries: nextEntries,
+          amount: totalAmt,
+          note: combinedNote || p.note
+        };
+        targetSnapshot = nextObj;
+        return nextObj;
+      })
+    );
+
+    if (targetSnapshot) {
+      await syncPhaseTotalsToBackend(phaseNumber, targetSnapshot);
+    }
+  };
+
+  const handleRemovePhaseDateEntry = async (phaseNumber, entryId) => {
+    let targetSnapshot = null;
+    setMessBazaarPhases((prev) =>
+      prev.map((p) => {
+        if (p.phaseNumber !== phaseNumber) return p;
+        const filtered = (Array.isArray(p.dateEntries) ? p.dateEntries : []).filter((e) => e.id !== entryId);
+        const nextEntries = filtered.length > 0 ? filtered : [{ id: Date.now(), date: '', amount: 0, note: '' }];
+        const totalAmt = nextEntries.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+        const nextObj = { ...p, dateEntries: nextEntries, amount: totalAmt };
+        targetSnapshot = nextObj;
+        return nextObj;
+      })
+    );
+    if (targetSnapshot) {
+      await syncPhaseTotalsToBackend(phaseNumber, targetSnapshot);
+    }
+  };
+
+  const handleAddBazaarNote = (e) => {
+    e.preventDefault();
+    if (!newBazaarNoteTitle.trim() && !newBazaarNoteItems.trim()) return;
+    const weekday = getBanglaWeekdayFromIso(newBazaarNoteDate, '');
+    const noteItem = {
+      id: Date.now(),
+      date: newBazaarNoteDate || formatIsoDate(new Date()),
+      weekday,
+      title: newBazaarNoteTitle.trim() || 'বাজারের লিস্ট',
+      items: newBazaarNoteItems.trim()
+    };
+    setMessBazaarNotes((prev) => [noteItem, ...prev]);
+    setNewBazaarNoteTitle('');
+    setNewBazaarNoteItems('');
+    showToast('বাজারের লিস্ট নোট সেভ হয়েছে!');
+  };
+
+  const handleDeleteBazaarNote = (noteId) => {
+    setMessBazaarNotes((prev) => prev.filter((n) => n.id !== noteId));
+  };
+
+  const applyCalendarStartDate = (newStartIso) => {
+    const parsedStart = parseIsoDateSafe(newStartIso);
+    if (!parsedStart) {
+      showToast('সঠিক তারিখ দিন (যেমন: 2026-11-20)');
+      return;
+    }
+    const normalizedStart = formatIsoDate(parsedStart);
+    setMessStartDate(normalizedStart);
+    setMessMealSheet35((prev) =>
+      prev.map((row, idx) => {
+        const dt = new Date(parsedStart.getFullYear(), parsedStart.getMonth(), parsedStart.getDate() + idx);
+        const iso = formatIsoDate(dt);
+        const weekday = getBanglaWeekdayFromIso(iso, row.weekday);
+        const matchedMenu =
+          messWeeklyMenu.find((m) => m.day === weekday) ||
+          messWeeklyMenu[idx % 7] ||
+          DEFAULT_MESS_WEEKLY_MENU[idx % 7];
+        return {
+          ...row,
+          calendarDate: iso,
+          weekday,
+          morningMenu: matchedMenu.morning,
+          nightMenu: matchedMenu.night
+        };
+      })
+    );
+    showToast(`ক্যালেন্ডার আপডেট হয়েছে (${normalizedStart})!`);
+  };
+
+  const handleMessStartDateChange = (newStartIso) => {
+    setMessStartDate(newStartIso);
+  };
+
+  const handleMessRowDateChange = (dayNumber, newIsoDate) => {
+    setMessMealSheet35((prev) =>
+      prev.map((r) => {
+        if (r.day !== dayNumber) return r;
+        const parsed = parseIsoDateSafe(newIsoDate);
+        if (!parsed) {
+          return { ...r, calendarDate: newIsoDate };
+        }
+        const normalizedIso = formatIsoDate(parsed);
+        const weekday = getBanglaWeekdayFromIso(normalizedIso, r.weekday);
+        const matchedMenu =
+          messWeeklyMenu.find((m) => m.day === weekday) ||
+          messWeeklyMenu[(dayNumber - 1) % 7] ||
+          DEFAULT_MESS_WEEKLY_MENU[(dayNumber - 1) % 7];
+        return {
+          ...r,
+          calendarDate: normalizedIso,
+          weekday,
+          morningMenu: matchedMenu.morning,
+          nightMenu: matchedMenu.night
+        };
+      })
+    );
+  };
+
+  const handleMessMealCell = async (dayNumber, memberId, rawValue) => {
+    const parsed = Math.max(0, parseFloat(rawValue) || 0);
+    setMessMealSheet35((prev) =>
+      prev.map((row) =>
+        row.day === dayNumber
+          ? {
+              ...row,
+              mealsByMember: {
+                ...row.mealsByMember,
+                [memberId]: rawValue === '' ? 0 : parsed
+              }
+            }
+          : row
+      )
+    );
+
+    try {
+      const res = await axios.put(
+        `${API_BASE}/mess/meals`,
+        { dayNumber, memberId, meals: rawValue === '' ? 0 : parsed },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data) applyMessServerState(res.data);
+    } catch {}
+  };
+
+  const handleMessBillChange = async (billId, field, rawValue) => {
+    const nextValue = field === 'amount' ? Math.max(0, parseFloat(rawValue) || 0) : rawValue;
+    setMessUtilityBills((prev) =>
+      prev.map((b) => (b.id === billId ? { ...b, [field]: nextValue } : b))
+    );
+
+    try {
+      const res = await axios.put(
+        `${API_BASE}/mess/bills/${billId}`,
+        { [field]: nextValue },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data) applyMessServerState(res.data);
+    } catch {}
+  };
+
+  const handleAddMessBill = async (e) => {
+    e.preventDefault();
+    if (!newMessBillTitle.trim()) return;
+    const titleVal = newMessBillTitle.trim();
+    const amountVal = Math.max(0, parseFloat(newMessBillAmount) || 0);
+    const tempId = Date.now();
+
+    setMessUtilityBills((prev) => [...prev, { id: tempId, name: titleVal, amount: amountVal }]);
+    setNewMessBillTitle('');
+    setNewMessBillAmount('');
+
+    try {
+      const res = await axios.post(
+        `${API_BASE}/mess/bills`,
+        { title: titleVal, amount: amountVal },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data) applyMessServerState(res.data);
+    } catch {}
+
+    showToast('নতুন ইউটিলিটি বিল যোগ করা হয়েছে!');
+  };
+
+  const handleDeleteMessBill = async (billId) => {
+    setMessUtilityBills((prev) => prev.filter((b) => b.id !== billId));
+    try {
+      const res = await axios.delete(`${API_BASE}/mess/bills/${billId}`, {
+        headers: getAuthHeaders()
+      });
+      if (res.data) applyMessServerState(res.data);
+    } catch {}
+  };
 
   // Save Budget & Initial Balance to MySQL + localStorage
   const handleUpdateBudget = async (newBudgetData) => {
@@ -631,7 +1489,6 @@ function App() {
     setUser(null);
     setCoursesCount(0);
     setActiveTab('dashboard');
-    setMessages([]);
     showToast('লগআউট করা হয়েছে।');
   };
 
@@ -683,6 +1540,45 @@ function App() {
   const completedTasksCount = tasks.filter(task => task.completed).length;
   const taskCompletionPercent = tasks.length > 0 ? Math.round((completedTasksCount / tasks.length) * 100) : 0;
 
+  // Mess Calculations
+  const messTotalBazaar = messBazaarPhases.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+  const messMemberMealsMap = {};
+  let messGrandTotalMeals = 0;
+  messMembers.forEach((m) => {
+    const mTotal = messMealSheet35.reduce(
+      (acc, row) => acc + (parseFloat(row.mealsByMember?.[m.id]) || 0),
+      0
+    );
+    messMemberMealsMap[m.id] = mTotal;
+    messGrandTotalMeals += mTotal;
+  });
+  const messMealRate = messGrandTotalMeals > 0 ? messTotalBazaar / messGrandTotalMeals : 0;
+  const messTotalUtilityBills = messUtilityBills.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
+  const messPerMemberUtility = messMembers.length > 0 ? messTotalUtilityBills / messMembers.length : 0;
+  const messSettlements = messMembers.map((m) => {
+    const phasePaid = messBazaarPhases
+      .filter((p) => Number(p.memberId) === Number(m.id))
+      .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const extraDep = parseFloat(m.extraDeposit) || 0;
+    const totalPaidOrDeposited = phasePaid + extraDep;
+    const totalMeals = messMemberMealsMap[m.id] || 0;
+    const mealCost = totalMeals * messMealRate;
+    const extraAddOn = parseFloat(m.extraAddOn) || 0;
+    const totalExpenseForMember = mealCost + messPerMemberUtility + extraAddOn;
+    const netBalance = totalPaidOrDeposited - totalExpenseForMember;
+    return {
+      ...m,
+      phasePaid,
+      totalPaidOrDeposited,
+      totalMeals,
+      mealCost,
+      utilityShare: messPerMemberUtility,
+      extraAddOn,
+      totalExpenseForMember,
+      netBalance
+    };
+  });
+
   // Gauge / Cluster Computed Values
   const clusterValueMap = {
     CGPA: { main: cgpaData.cgpa, unit: '/ 4.00 CGPA', pct: cgpaPercent },
@@ -714,24 +1610,84 @@ function App() {
     }
   };
 
-  // Chatbot Handler
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!inputMessage.trim()) return;
-    const userMsg = inputMessage;
-    setMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
-    setInputMessage('');
+  // Learning Hub Lesson & Resilient Dynamic Quiz Handlers
+  const handleSelectHubLesson = (topicTitle, lessonObj) => {
+    setActiveLesson({
+      courseTitle: topicTitle,
+      title: lessonObj.title,
+      resources: lessonObj.resources || []
+    });
+    setQuizQuestions([]);
+    setSelectedAnswers({});
+    setQuizSubmitted(false);
+    setQuizError('');
+    setQuizSourceNote('');
+  };
+
+  const handleGenerateHubQuiz = async (count = 10) => {
+    if (!activeLesson) return;
+    setLoadingQuiz(true);
+    setQuizError('');
+    setQuizSourceNote('');
+    setQuizSubmitted(false);
+    setSelectedAnswers({});
+
+    const payload = {
+      userId: user?.id,
+      courseTitle: activeLesson.courseTitle,
+      lessonTitle: activeLesson.title,
+      count,
+      avoidQuestions: seenQuestions
+    };
 
     try {
-      const res = await axios.post(`${API_BASE}/chat/message`, {
-        message: userMsg,
-        userId: user?.id
-      });
-      setMessages(prev => [...prev, { sender: 'bot', text: res.data.reply || 'Thank you.' }]);
-    } catch (err) {
-      setMessages(prev => [...prev, { sender: 'bot', text: `Control AI Assistant: "${userMsg}" - সিস্টেম স্বাভাবিক রয়েছে।` }]);
+      let resData = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const res = await axios.post(`${API_BASE}/quiz/generate`, payload, {
+            headers: getAuthHeaders(),
+            timeout: 15000
+          });
+          if (Array.isArray(res.data?.questions) && res.data.questions.length > 0) {
+            resData = res.data;
+            break;
+          }
+        } catch (innerErr) {
+          if (attempt === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 600));
+          } else {
+            throw innerErr;
+          }
+        }
+      }
+
+      if (resData && Array.isArray(resData.questions) && resData.questions.length > 0) {
+        setQuizQuestions(resData.questions);
+        setQuizSourceNote('AI সার্ভার থেকে নতুন কুইজ তৈরি হয়েছে।');
+        const newTexts = resData.questions.map((q) => q.question).filter(Boolean);
+        setSeenQuestions((prev) => [...prev, ...newTexts]);
+      } else {
+        throw new Error('Empty quiz response');
+      }
+    } catch {
+      const fallbackQs = buildFallbackQuizQuestions(
+        activeLesson.courseTitle,
+        activeLesson.title,
+        count,
+        seenQuestions
+      );
+      setQuizQuestions(fallbackQs);
+      setQuizSourceNote('AI মডেল সাময়িকভাবে ব্যস্ত থাকায় স্মার্ট কুইজ ব্যাংক থেকে নতুন প্রশ্ন লোড করা হয়েছে।');
+      const newTexts = fallbackQs.map((q) => q.question).filter(Boolean);
+      setSeenQuestions((prev) => [...prev, ...newTexts]);
+    } finally {
+      setLoadingQuiz(false);
     }
   };
+
+  const hubQuizScore = quizQuestions.reduce((acc, q, idx) => {
+    return acc + (selectedAnswers[idx] === q.answerIndex ? 1 : 0);
+  }, 0);
 
   // Theme Object
   const t = {
@@ -835,7 +1791,7 @@ function App() {
             { id: 'dashboard', label: '📊 Dashboard' },
             { id: 'expenses', label: '💰 Expenses' },
             { id: 'cgpa', label: '📈 CGPA' },
-            { id: 'attendance', label: '📋 Attendance' },
+            { id: 'attendance', label: '🏠 House & Bills' },
             { id: 'courses', label: '📚 Courses' },
             { id: 'chat', label: '🤖 AI Chatbot' },
             { id: 'hub', label: '💡 Learning Hub' }
@@ -1578,25 +2534,492 @@ function App() {
             </motion.div>
           )}
 
-          {/* 4. ATTENDANCE */}
+          {/* 4. HOUSE & BILLS (MESS MANAGEMENT) */}
           {activeTab === 'attendance' && (
             <motion.div key="attendance" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
               <button className="back-btn" onClick={() => changeTab('dashboard')}>⬅ Back to Dashboard</button>
-              <h2 style={{ color: t.text, marginBottom: '20px', fontSize: '20px' }}>📋 Attendance & Marks Tracker</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-                {[{ code: 'CSE-311', name: 'Compiler Design', total: 20, present: 18, pct: 90 }, { code: 'CSE-312', name: 'Software Engineering', total: 18, present: 15, pct: 83 }, { code: 'CSE-472', name: 'Web Programming Lab', total: 15, present: 14, pct: 93 }, { code: 'CSE-315', name: 'Algorithms', total: 19, present: 13, pct: 68 }].map((c, idx) => (
-                  <div key={idx} style={{ background: t.cardBg, padding: '20px', borderRadius: '14px', border: `1px solid ${t.border}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <h4 style={{ margin: 0, color: t.text, fontSize: '15px' }}>{c.code}: {c.name}</h4>
-                      <span style={{ padding: '4px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', background: c.pct >= 75 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: c.pct >= 75 ? '#34d399' : '#f87171' }}>{c.pct}%</span>
+              <h2 style={{ color: t.text, marginBottom: '20px', fontSize: '20px' }}>🏠 House & Bills — Mess Management (৩৫ দিনের শিট)</h2>
+
+              {/* Summary Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ background: t.cardBg, padding: '16px', borderRadius: '14px', border: `1px solid ${t.border}`, borderLeft: '4px solid #f97316' }}>
+                  <span style={{ color: t.subText, fontSize: '12px', fontWeight: '600' }}>মোট বাজার খরচ</span>
+                  <h3 style={{ margin: '6px 0 0 0', fontSize: '22px', color: t.text }}>৳ {messTotalBazaar.toFixed(2)}</h3>
+                </div>
+                <div style={{ background: t.cardBg, padding: '16px', borderRadius: '14px', border: `1px solid ${t.border}`, borderLeft: '4px solid #10b981' }}>
+                  <span style={{ color: t.subText, fontSize: '12px', fontWeight: '600' }}>৩৫ দিনের মোট মিল</span>
+                  <h3 style={{ margin: '6px 0 0 0', fontSize: '22px', color: '#10b981' }}>{messGrandTotalMeals}</h3>
+                </div>
+                <div style={{ background: t.cardBg, padding: '16px', borderRadius: '14px', border: `1px solid ${t.border}`, borderLeft: '4px solid #f97316' }}>
+                  <span style={{ color: t.subText, fontSize: '12px', fontWeight: '600' }}>মিল রেট (বাজার ÷ মিল)</span>
+                  <h3 style={{ margin: '6px 0 0 0', fontSize: '22px', color: '#f97316' }}>৳ {messMealRate.toFixed(2)}</h3>
+                </div>
+                <div style={{ background: t.cardBg, padding: '16px', borderRadius: '14px', border: `1px solid ${t.border}`, borderLeft: '4px solid #ef4444' }}>
+                  <span style={{ color: t.subText, fontSize: '12px', fontWeight: '600' }}>মোট ইউটিলিটি বিল</span>
+                  <h3 style={{ margin: '6px 0 0 0', fontSize: '22px', color: '#ef4444' }}>৳ {messTotalUtilityBills.toFixed(2)}</h3>
+                </div>
+              </div>
+
+              {/* ১. ৫ জন মেম্বারের নাম সেটআপ */}
+              <div style={{ background: t.cardBg, padding: '20px', borderRadius: '14px', border: `1px solid ${t.border}`, marginBottom: '24px' }}>
+                <h3 style={{ margin: '0 0 14px 0', fontSize: '15px', color: t.text }}>👥 ৫ জন সদস্যের নাম (লিখলে ডাটাবেজ ও লোকাল স্টোরেজে সেভ থাকবে)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                  {messMembers.map((m, idx) => (
+                    <div key={m.id}>
+                      <label style={{ fontSize: '12px', color: t.subText }}>মেম্বার #{idx + 1}</label>
+                      <input
+                        type="text"
+                        value={m.name}
+                        onChange={(e) => handleMessMemberField(m.id, 'name', e.target.value)}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bg, color: t.text, marginTop: '4px' }}
+                      />
                     </div>
-                    <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: t.subText }}>Attended: {c.present} / {c.total} Classes</p>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button onClick={() => showToast(`${c.code} - উপস্থিত মার্ক করা হয়েছে`)} style={{ flex: 1, padding: '8px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>Present</button>
-                      <button onClick={() => showToast(`${c.code} - অনুপস্থিত মার্ক করা হয়েছে`)} style={{ flex: 1, padding: '8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>Absent</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ২. সাপ্তাহিক খাবারের মেনু ও নিয়মাবলি */}
+              <div style={{ background: t.cardBg, padding: '20px', borderRadius: '14px', border: `1px solid ${t.border}`, marginBottom: '24px' }}>
+                <h3 style={{ margin: '0 0 14px 0', fontSize: '15px', color: t.text }}>🍽️ সাপ্তাহিক খাবারের মেনু (এডিটেবল)</h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', color: t.text }}>
+                    <thead>
+                      <tr style={{ background: t.bg, textAlign: 'left', color: t.subText }}>
+                        <th style={{ padding: '10px' }}>বার</th>
+                        <th style={{ padding: '10px' }}>সকাল</th>
+                        <th style={{ padding: '10px' }}>রাত</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {messWeeklyMenu.map((item, idx) => (
+                        <tr key={item.day} style={{ borderBottom: `1px solid ${t.border}` }}>
+                          <td style={{ padding: '8px 10px', fontWeight: '700', color: '#f97316' }}>{item.day}</td>
+                          <td style={{ padding: '6px 10px' }}>
+                            <input
+                              type="text"
+                              value={item.morning}
+                              onChange={(e) => handleMessMenuField(idx, 'morning', e.target.value)}
+                              style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text }}
+                            />
+                          </td>
+                          <td style={{ padding: '6px 10px' }}>
+                            <input
+                              type="text"
+                              value={item.night}
+                              onChange={(e) => handleMessMenuField(idx, 'night', e.target.value)}
+                              style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ marginTop: '14px', padding: '12px 16px', background: t.bg, borderRadius: '10px', border: `1px solid ${t.border}`, fontSize: '12px', color: t.subText }}>
+                  <strong style={{ color: t.text }}>দ্রষ্টব্য:</strong>
+                  <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
+                    {messRules.map((rule, rIdx) => (
+                      <li key={rIdx} style={{ marginBottom: '4px' }}>{rule}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* ৩. মাসকে ৫ ধাপে ভাগ করে বাজারের ফিল্ড + তারিখ অনুযায়ী টাকা ও বিবরণ */}
+              <div style={{ background: t.cardBg, padding: '20px', borderRadius: '14px', border: `1px solid ${t.border}`, marginBottom: '24px' }}>
+                <h3 style={{ margin: '0 0 14px 0', fontSize: '15px', color: t.text }}>🛒 ৫ ধাপের বাজার শিডিউল ও বাজারের টাকা (তারিখ অনুযায়ী টাকা ও বিবরণ যুক্ত করা যাবে)</h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', color: t.text }}>
+                    <thead>
+                      <tr style={{ background: t.bg, textAlign: 'left', color: t.subText }}>
+                        <th style={{ padding: '10px' }}>ধাপ</th>
+                        <th style={{ padding: '10px' }}>তারিখের রেঞ্জ</th>
+                        <th style={{ padding: '10px' }}>বাজার করবে</th>
+                        <th style={{ padding: '10px' }}>বাজারের টাকা (৳)</th>
+                        <th style={{ padding: '10px' }}>বাজার বিবরণ ও তারিখ অনুযায়ী এন্ট্রি</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {messBazaarPhases.map((phase) => {
+                        const entries = Array.isArray(phase.dateEntries) && phase.dateEntries.length > 0
+                          ? phase.dateEntries
+                          : [{ id: phase.phaseNumber * 100 + 1, date: '', amount: phase.amount || 0, note: phase.note || '' }];
+
+                        return (
+                          <tr key={phase.phaseNumber} style={{ borderBottom: `1px solid ${t.border}`, verticalAlign: 'top' }}>
+                            <td style={{ padding: '10px', fontWeight: '700' }}>{phase.phaseLabel}</td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <input
+                                type="text"
+                                value={phase.dateRange}
+                                onChange={(e) => handleMessPhaseField(phase.phaseNumber, 'dateRange', e.target.value)}
+                                style={{ width: '130px', padding: '7px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text }}
+                              />
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <select
+                                value={phase.memberId || ''}
+                                onChange={(e) => handleMessPhaseField(phase.phaseNumber, 'memberId', e.target.value)}
+                                style={{ padding: '7px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text }}
+                              >
+                                {messMembers.map((m) => (
+                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={phase.amount === 0 ? '' : phase.amount}
+                                placeholder="0"
+                                onChange={(e) => handleMessPhaseField(phase.phaseNumber, 'amount', e.target.value)}
+                                style={{ width: '115px', padding: '7px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: '#f97316', fontWeight: '600' }}
+                              />
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                {entries.map((entry) => (
+                                  <div key={entry.id} style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <input
+                                      type="text"
+                                      value={entry.date || ''}
+                                      placeholder="তারিখ (যেমন: 2026-11-03 বা ৩ তারিখ)"
+                                      onChange={(e) => handlePhaseDateEntryChange(phase.phaseNumber, entry.id, 'date', e.target.value)}
+                                      style={{ width: '155px', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text, fontSize: '12px' }}
+                                    />
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="any"
+                                      value={entry.amount === 0 ? '' : entry.amount}
+                                      placeholder="৳ টাকা"
+                                      onChange={(e) => handlePhaseDateEntryChange(phase.phaseNumber, entry.id, 'amount', e.target.value)}
+                                      style={{ width: '95px', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: '#10b981', fontWeight: '600', fontSize: '12px' }}
+                                    />
+                                    <input
+                                      type="text"
+                                      value={entry.note || ''}
+                                      placeholder="বাজার বিবরণ (যেমন: চাল, তেল, মাছ...)"
+                                      onChange={(e) => handlePhaseDateEntryChange(phase.phaseNumber, entry.id, 'note', e.target.value)}
+                                      style={{ flex: 1, minWidth: '160px', padding: '6px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text, fontSize: '12px' }}
+                                    />
+                                    {entries.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemovePhaseDateEntry(phase.phaseNumber, entry.id)}
+                                        style={{ padding: '5px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                                <div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddPhaseDateEntry(phase.phaseNumber)}
+                                    style={{ padding: '5px 10px', background: 'rgba(249, 115, 22, 0.16)', color: '#f97316', border: '1px solid rgba(249, 115, 22, 0.4)', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}
+                                  >
+                                    + তারিখের বাজার যোগ করুন
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* বাজারের লিস্ট নোট (Bazaar List Note) */}
+                <div style={{ marginTop: '20px', padding: '16px', borderRadius: '12px', background: t.bg, border: `1px solid ${t.border}` }}>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#f97316' }}>📝 বাজারের লিস্ট নোট (তারিখ অনুযায়ী নোট করে রাখুন)</h4>
+                  <form onSubmit={handleAddBazaarNote} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        value={newBazaarNoteDate}
+                        onChange={(e) => setNewBazaarNoteDate(e.target.value)}
+                        placeholder="তারিখ (যেমন: 2026-11-20)"
+                        style={{ width: '160px', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.cardBg, color: t.text, fontSize: '12px' }}
+                      />
+                      <input
+                        type="text"
+                        value={newBazaarNoteTitle}
+                        onChange={(e) => setNewBazaarNoteTitle(e.target.value)}
+                        placeholder="নোটের শিরোনাম (যেমন: ৩ তারিখের বাজার লিস্ট)"
+                        style={{ flex: 1, minWidth: '200px', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.cardBg, color: t.text, fontSize: '12px' }}
+                      />
                     </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        value={newBazaarNoteItems}
+                        onChange={(e) => setNewBazaarNoteItems(e.target.value)}
+                        placeholder="বাজারের লিস্ট লিখুন (যেমন: চাল ৫ কেজি, ডিম ৩০টা, আলু ৩ কেজি, সয়াবিন তেল ২ লিটার...)"
+                        style={{ flex: 1, minWidth: '240px', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.cardBg, color: t.text, fontSize: '12px' }}
+                      />
+                      <button
+                        type="submit"
+                        style={{ padding: '8px 14px', borderRadius: '6px', background: '#f97316', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}
+                      >
+                        + নোট সেভ করুন
+                      </button>
+                    </div>
+                  </form>
+
+                  {messBazaarNotes.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: '12px', color: t.subText }}>এখনো কোনো বাজারের লিস্ট নোট যুক্ত করা হয়নি।</p>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                      {messBazaarNotes.map((noteItem) => (
+                        <div key={noteItem.id} style={{ padding: '12px', borderRadius: '8px', background: t.cardBg, border: `1px solid ${t.border}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '700', color: '#10b981' }}>
+                              📅 {noteItem.date} {noteItem.weekday ? `(${noteItem.weekday})` : ''}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBazaarNote(noteItem.id)}
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          <div style={{ fontSize: '13px', fontWeight: '700', color: t.text, marginBottom: '4px' }}>{noteItem.title}</div>
+                          <div style={{ fontSize: '12px', color: t.subText, whiteSpace: 'pre-wrap' }}>{noteItem.items}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ৪. ৩৫ দিনের ডেইলি মিল কাউন্টিং শিট (রিয়েল ক্যালেন্ডার অনুযায়ী তারিখ ও অটো বার) */}
+              <div style={{ background: t.cardBg, padding: '20px', borderRadius: '14px', border: `1px solid ${t.border}`, marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                  <h3 style={{ margin: 0, fontSize: '15px', color: t.text }}>📅 ৩৫ দিনের ডেইলি মিল কাউন্টিং শিট (রিয়েল ক্যালেন্ডার অনুযায়ী তারিখ ও অটো বার)</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: '12px', color: t.subText }}>শুরুর ক্যালেন্ডার তারিখ:</label>
+                    <input
+                      type="text"
+                      value={messStartDate}
+                      onChange={(e) => handleMessStartDateChange(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') applyCalendarStartDate(e.currentTarget.value);
+                      }}
+                      placeholder="YYYY-MM-DD (যেমন: 2026-11-20)"
+                      style={{ width: '145px', padding: '6px 10px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text, fontSize: '12px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => applyCalendarStartDate(messStartDate)}
+                      style={{ padding: '6px 12px', borderRadius: '6px', background: '#f97316', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                    >
+                      বার আপডেট
+                    </button>
                   </div>
-                ))}
+                </div>
+                <div style={{ overflowX: 'auto', maxHeight: '420px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', color: t.text }}>
+                    <thead style={{ position: 'sticky', top: 0, background: t.bg, zIndex: 1 }}>
+                      <tr style={{ textAlign: 'left', color: t.subText }}>
+                        <th style={{ padding: '10px' }}>দিন ও ক্যালেন্ডার তারিখ</th>
+                        <th style={{ padding: '10px' }}>বার</th>
+                        <th style={{ padding: '10px' }}>সকাল ও রাতের মেনু</th>
+                        {messMembers.map((m) => (
+                          <th key={m.id} style={{ padding: '10px', textAlign: 'center' }}>{m.name}</th>
+                        ))}
+                        <th style={{ padding: '10px', textAlign: 'center' }}>দিনের মিল</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {messMealSheet35.map((row) => {
+                        const daySum = messMembers.reduce(
+                          (acc, m) => acc + (parseFloat(row.mealsByMember?.[m.id]) || 0),
+                          0
+                        );
+                        return (
+                          <tr key={row.day} style={{ borderBottom: `1px solid ${t.border}` }}>
+                            <td style={{ padding: '6px 10px', fontWeight: '700' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span>দিন {row.day}</span>
+                                <input
+                                  type="text"
+                                  value={row.calendarDate || ''}
+                                  onChange={(e) => handleMessRowDateChange(row.day, e.target.value)}
+                                  placeholder="YYYY-MM-DD"
+                                  style={{ width: '112px', padding: '4px 6px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text, fontSize: '11px' }}
+                                />
+                              </div>
+                            </td>
+                            <td style={{ padding: '6px 10px', fontWeight: '700', color: '#f97316' }}>{row.weekday}</td>
+                            <td style={{ padding: '6px 10px', color: t.subText, fontSize: '12px' }}>
+                              সকাল: {row.morningMenu} | রাত: {row.nightMenu}
+                            </td>
+                            {messMembers.map((m) => (
+                              <td key={m.id} style={{ padding: '4px 6px', textAlign: 'center' }}>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.5"
+                                  value={row.mealsByMember?.[m.id] === 0 ? '' : row.mealsByMember?.[m.id]}
+                                  placeholder="0"
+                                  onChange={(e) => handleMessMealCell(row.day, m.id, e.target.value)}
+                                  style={{ width: '64px', padding: '6px', textAlign: 'center', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text }}
+                                />
+                              </td>
+                            ))}
+                            <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: '700', color: '#f97316' }}>
+                              {daySum}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr style={{ background: t.bg, fontWeight: '700' }}>
+                        <td colSpan={3} style={{ padding: '10px', textAlign: 'right' }}>মোট মিল (৩৫ দিন):</td>
+                        {messMembers.map((m) => (
+                          <td key={m.id} style={{ padding: '10px', textAlign: 'center', color: '#10b981' }}>
+                            {messMemberMealsMap[m.id] || 0}
+                          </td>
+                        ))}
+                        <td style={{ padding: '10px', textAlign: 'center', color: '#f97316' }}>{messGrandTotalMeals}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ৫. এডিটেবল ইউটিলিটি / এক্সট্রা বিলসমূহ */}
+              <div style={{ background: t.cardBg, padding: '20px', borderRadius: '14px', border: `1px solid ${t.border}`, marginBottom: '24px' }}>
+                <h3 style={{ margin: '0 0 14px 0', fontSize: '15px', color: t.text }}>💡 ইউটিলিটি / এক্সট্রা বিল (বুয়া, বাসা খরচ, ওয়াইফাই ইত্যাদি)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                  {messUtilityBills.map((bill) => (
+                    <div key={bill.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', background: t.bg, padding: '10px', borderRadius: '10px', border: `1px solid ${t.border}` }}>
+                      <input
+                        type="text"
+                        value={bill.name}
+                        onChange={(e) => handleMessBillChange(bill.id, 'name', e.target.value)}
+                        style={{ flex: 1, padding: '7px 9px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.cardBg, color: t.text }}
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={bill.amount === 0 ? '' : bill.amount}
+                        placeholder="৳"
+                        onChange={(e) => handleMessBillChange(bill.id, 'amount', e.target.value)}
+                        style={{ width: '90px', padding: '7px 9px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.cardBg, color: '#f97316', fontWeight: '600' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMessBill(bill.id)}
+                        style={{ padding: '7px 10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700' }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <form onSubmit={handleAddMessBill} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="নতুন বিলের নাম (যেমন: ময়লা বিল, কারেন্ট)"
+                    value={newMessBillTitle}
+                    onChange={(e) => setNewMessBillTitle(e.target.value)}
+                    style={{ padding: '9px 12px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bg, color: t.text }}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="টাকার পরিমাণ"
+                    value={newMessBillAmount}
+                    onChange={(e) => setNewMessBillAmount(e.target.value)}
+                    style={{ width: '140px', padding: '9px 12px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bg, color: t.text }}
+                  />
+                  <button
+                    type="submit"
+                    style={{ padding: '9px 16px', borderRadius: '8px', background: '#f97316', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    + বিল যোগ করুন
+                  </button>
+                </form>
+              </div>
+
+              {/* ৬. ফাইনাল সেটেলমেন্ট (মিল খরচ + ইউটিলিটি বিল শেয়ার + এক্সট্রা অ্যাড-অন ফিল্ড) */}
+              <div style={{ background: t.cardBg, padding: '20px', borderRadius: '14px', border: `1px solid ${t.border}` }}>
+                <h3 style={{ margin: '0 0 14px 0', fontSize: '15px', color: t.text }}>📊 ফাইনাল পাওয়া-দেওয়ার হিসাব (মিল + ইউটিলিটি + অতিরিক্ত অ্যাড-অন)</h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', color: t.text }}>
+                    <thead>
+                      <tr style={{ background: t.bg, textAlign: 'left', color: t.subText }}>
+                        <th style={{ padding: '10px' }}>সদস্য</th>
+                        <th style={{ padding: '10px' }}>মোট মিল</th>
+                        <th style={{ padding: '10px' }}>মিল খরচ (৳)</th>
+                        <th style={{ padding: '10px' }}>ইউটিলিটি শেয়ার (৳)</th>
+                        <th style={{ padding: '10px' }}>অতিরিক্ত অ্যাড-অন (৳)</th>
+                        <th style={{ padding: '10px' }}>অ্যাড-অন বিবরণ</th>
+                        <th style={{ padding: '10px' }}>মোট বাজার/জমা (৳)</th>
+                        <th style={{ padding: '10px' }}>সর্বমোট খরচ (৳)</th>
+                        <th style={{ padding: '10px' }}>ফাইনাল হিসাব</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {messSettlements.map((s) => {
+                        const isPositive = s.netBalance >= 0;
+                        return (
+                          <tr key={s.id} style={{ borderBottom: `1px solid ${t.border}` }}>
+                            <td style={{ padding: '8px 10px', fontWeight: '700' }}>{s.name}</td>
+                            <td style={{ padding: '8px 10px' }}>{s.totalMeals}</td>
+                            <td style={{ padding: '8px 10px' }}>৳ {s.mealCost.toFixed(2)}</td>
+                            <td style={{ padding: '8px 10px' }}>৳ {s.utilityShare.toFixed(2)}</td>
+                            <td style={{ padding: '6px 10px' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={s.extraAddOn === 0 ? '' : s.extraAddOn}
+                                placeholder="0"
+                                onChange={(e) => handleMessMemberField(s.id, 'extraAddOn', e.target.value)}
+                                style={{ width: '90px', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: '#f97316', fontWeight: '600' }}
+                              />
+                            </td>
+                            <td style={{ padding: '6px 10px' }}>
+                              <input
+                                type="text"
+                                value={s.extraNote}
+                                placeholder="কী কেনা হয়েছে..."
+                                onChange={(e) => handleMessMemberField(s.id, 'extraNote', e.target.value)}
+                                style={{ width: '140px', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${t.border}`, background: t.bg, color: t.text }}
+                              />
+                            </td>
+                            <td style={{ padding: '8px 10px', color: '#10b981', fontWeight: '600' }}>৳ {s.totalPaidOrDeposited.toFixed(2)}</td>
+                            <td style={{ padding: '8px 10px' }}>৳ {s.totalExpenseForMember.toFixed(2)}</td>
+                            <td
+                              style={{
+                                padding: '8px 10px',
+                                fontWeight: '700',
+                                color: Math.abs(s.netBalance) < 0.01 ? t.subText : isPositive ? '#10b981' : '#ef4444'
+                              }}
+                            >
+                              {Math.abs(s.netBalance) < 0.01
+                                ? 'সমান (৳0.00)'
+                                : isPositive
+                                ? `পাবে +৳${s.netBalance.toFixed(2)}`
+                                : `দেবে -৳${Math.abs(s.netBalance).toFixed(2)}`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </motion.div>
           )}
@@ -1617,22 +3040,21 @@ function App() {
           {activeTab === 'chat' && (
             <motion.div key="chat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
               <button className="back-btn" onClick={() => changeTab('dashboard')}>⬅ Back to Dashboard</button>
-              <div style={{ background: t.cardBg, padding: '24px', borderRadius: '14px', border: `1px solid ${t.border}`, maxWidth: '800px', margin: '0 auto' }}>
-                <h2 style={{ marginTop: 0, color: t.text, fontSize: '18px' }}>Control AI Policy Assistant</h2>
-                <div style={{ border: `1px solid ${t.border}`, height: '360px', overflowY: 'auto', padding: '16px', marginBottom: '16px', borderRadius: '10px', background: t.bg }}>
-                  {messages.length === 0 ? <p style={{ color: t.subText, textAlign: 'center', marginTop: '140px' }}>Ask any question related to your courses or study topics...</p> : (
-                    messages.map((m, idx) => (
-                      <div key={idx} style={{ marginBottom: '12px', textAlign: m.sender === 'user' ? 'right' : 'left' }}>
-                        <span style={{ display: 'inline-block', padding: '10px 16px', borderRadius: '12px', background: m.sender === 'user' ? '#f97316' : t.border, color: '#fff', fontSize: '13px', maxWidth: '75%' }}>{m.text}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '10px' }}>
-                  <input type="text" placeholder="Type your question here..." value={inputMessage} onChange={e => setInputMessage(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bg, color: t.text }} />
-                  <button type="submit" style={{ padding: '12px 24px', background: '#f97316', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>Send</button>
-                </form>
-              </div>
+              <AiChatbot
+                apiBase={API_BASE}
+                token={token}
+                user={user}
+                theme={theme}
+                contextStats={{
+                  cgpa: cgpaData.cgpa,
+                  totalCredits: cgpaData.totalCredits,
+                  currentBalance,
+                  budgetLimit,
+                  budgetUsedPercent,
+                  coursesCount
+                }}
+                onShowToast={showToast}
+              />
             </motion.div>
           )}
 
@@ -1642,7 +3064,7 @@ function App() {
               <button className="back-btn" onClick={() => changeTab('dashboard')}>⬅ Back to Dashboard</button>
               <h2 style={{ color: t.text, marginBottom: '20px', fontSize: '20px' }}>💡 Learning Hub</h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-                {[{ title: 'C++ Programming', icon: '⚡', desc: 'Pointers, Memory, OOP Basics', lessons: ['Hello World & I/O', 'Pointers & References', 'OOP Concepts'] }, { title: 'Java Core', icon: '☕', desc: 'Classes, Objects, Polymorphism', lessons: ['JVM & Main Method', 'Inheritance & Interfaces', 'Exception Handling'] }, { title: 'MySQL Relational DB', icon: '🐬', desc: 'Queries, JOINs & Schema Design', lessons: ['Basic CRUD Queries', 'INNER & LEFT JOINs', 'Database Indexing'] }].map((topic, idx) => (
+                {HUB_TOPICS.map((topic, idx) => (
                   <div key={idx} style={{ background: t.cardBg, padding: '24px', borderRadius: '14px', border: `1px solid ${t.border}` }}>
                     <span style={{ fontSize: '32px' }}>{topic.icon}</span>
                     <h3 style={{ margin: '12px 0 6px 0', color: t.text, fontSize: '17px' }}>{topic.title}</h3>
@@ -1650,17 +3072,160 @@ function App() {
                     <h4 style={{ fontSize: '12px', color: t.subText, textTransform: 'uppercase', marginBottom: '8px' }}>Lessons List</h4>
                     <ul style={{ paddingLeft: '20px', margin: 0, color: '#f97316', fontSize: '13px', cursor: 'pointer' }}>
                       {topic.lessons.map((les, lIdx) => (
-                        <li key={lIdx} onClick={() => setActiveLesson(les)} style={{ marginBottom: '6px' }}>{les}</li>
+                        <li
+                          key={lIdx}
+                          onClick={() => handleSelectHubLesson(topic.title, les)}
+                          style={{
+                            marginBottom: '6px',
+                            fontWeight: activeLesson?.title === les.title ? '700' : '400',
+                            textDecoration: activeLesson?.title === les.title ? 'underline' : 'none'
+                          }}
+                        >
+                          {les.title}
+                        </li>
                       ))}
                     </ul>
                   </div>
                 ))}
               </div>
+
               {activeLesson && (
                 <div style={{ marginTop: '30px', background: t.cardBg, padding: '24px', borderRadius: '14px', border: '1px solid rgba(249, 115, 22, 0.4)' }}>
-                  <h3 style={{ margin: '0 0 10px 0', color: '#f97316', fontSize: '16px' }}>📖 Active Lesson: {activeLesson}</h3>
-                  <p style={{ color: t.subText, lineHeight: '1.6', fontSize: '14px' }}>এখানে লেসনের বিস্তারিত বিবরণ এবং কোড স্নিপেট রয়েছে।</p>
-                  <button onClick={() => setActiveLesson(null)} style={{ padding: '6px 14px', background: t.border, color: t.text, border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Close Lesson</button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <h3 style={{ margin: 0, color: '#f97316', fontSize: '16px' }}>
+                      📖 Active Lesson: {activeLesson.courseTitle} — {activeLesson.title}
+                    </h3>
+                    <button
+                      onClick={() => setActiveLesson(null)}
+                      style={{ padding: '6px 14px', background: t.border, color: t.text, border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      Close Lesson
+                    </button>
+                  </div>
+
+                  <p style={{ color: t.subText, lineHeight: '1.6', fontSize: '14px', marginTop: '10px' }}>
+                    নিচের রিসোর্স লিংকগুলো থেকে বিস্তারিত পড়ো এবং নিচ থেকে প্রতিবার নতুন কুইজ তৈরি করে অনুশীলন করো:
+                  </p>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '18px' }}>
+                    {(activeLesson.resources || []).map((resItem) => (
+                      <a
+                        key={resItem.url}
+                        href={resItem.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          background: t.bg,
+                          color: '#60a5fa',
+                          textDecoration: 'none',
+                          fontSize: '13px',
+                          border: `1px solid ${t.border}`
+                        }}
+                      >
+                        {resItem.label} ↗
+                      </a>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      disabled={loadingQuiz}
+                      onClick={() => handleGenerateHubQuiz(10)}
+                      style={{
+                        padding: '10px 18px',
+                        background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {loadingQuiz ? 'নতুন প্রশ্ন তৈরি হচ্ছে...' : 'Generate New Quiz (10 Questions)'}
+                    </button>
+
+                    {quizQuestions.length > 0 && !quizSubmitted && (
+                      <button
+                        type="button"
+                        onClick={() => setQuizSubmitted(true)}
+                        style={{
+                          padding: '10px 18px',
+                          background: t.bg,
+                          color: t.text,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: `/8px`,
+                          fontWeight: '600',
+                          fontSize: '13px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Submit Quiz
+                      </button>
+                    )}
+                  </div>
+
+                  {quizSourceNote && (
+                    <p style={{ color: '#fbbf24', fontSize: '12px', marginTop: '10px' }}>{quizSourceNote}</p>
+                  )}
+
+                  {quizError && (
+                    <p style={{ color: '#f87171', fontSize: '13px', marginTop: '12px' }}>{quizError}</p>
+                  )}
+
+                  {quizSubmitted && quizQuestions.length > 0 && (
+                    <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.14)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#10b981', fontWeight: '600', fontSize: '14px' }}>
+                      Score: {hubQuizScore} / {quizQuestions.length} — আরও ভিন্ন প্রশ্ন পেতে "Generate New Quiz" চাপো।
+                    </div>
+                  )}
+
+                  {quizQuestions.map((q, qIdx) => (
+                    <div
+                      key={q.id || qIdx}
+                      style={{
+                        marginTop: '14px',
+                        paddingTop: '14px',
+                        borderTop: `1px solid ${t.border}`
+                      }}
+                    >
+                      <p style={{ margin: '0 0 8px 0', fontWeight: '600', fontSize: '14px', color: t.text }}>
+                        {qIdx + 1}. {q.question}
+                      </p>
+                      <div style={{ display: 'grid', gap: '6px' }}>
+                        {(q.options || []).map((opt, oIdx) => (
+                          <label
+                            key={oIdx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontSize: '13px',
+                              color: t.text,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name={`hub-q-${qIdx}`}
+                              checked={selectedAnswers[qIdx] === oIdx}
+                              onChange={() =>
+                                setSelectedAnswers((prev) => ({ ...prev, [qIdx]: oIdx }))
+                              }
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                      {quizSubmitted && q.explanation && (
+                        <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#60a5fa' }}>
+                          ব্যাখ্যা: {q.explanation}
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </motion.div>
